@@ -1,0 +1,9 @@
+
+
+
+default: compile
+
+compile: 
+	gcc -o a1jobs a1jobs.c
+	#gcc -o a1mon a1mon.c
+ 

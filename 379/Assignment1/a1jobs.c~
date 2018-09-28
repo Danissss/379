@@ -1,0 +1,26 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+int main(){
+  int state = 1;
+  char input[20];
+  int pid = getpid();
+
+  while(state != 0){
+    printf("Xuan[%i]:",*pid);
+    state = 0;
+  }
+
+  printf("C program\n");
+  return 0;
+
+
+}
+
+
+
+
+
+
