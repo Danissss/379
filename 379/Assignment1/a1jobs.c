@@ -4,7 +4,15 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/types.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <assert.h>
+#include <string.h>
 
+#define typename(x) _Generic((x), \
+    int:     "int", \
+    float:   "float", \
+    default: "other")
 
 #define MAX_JOBS 32
 
@@ -102,10 +110,13 @@ int main(){
         char *c = strtok(NULL, " ");
         //printf("jobNo=%s\n",c);
         if(c == NULL){
-          jobNo = 0;
+          jobNo = -1;
           
         }else if(strcmp(c,"") == 0 ||strcmp(c," ") == 0|| strcmp(c,"\n") == 0){
-          jobNo = 0;
+          jobNo = -1;
+        }
+        else if(strcmp(typename(c), "int") != 0){
+          jobNo = -1;
         }
         else
         {
@@ -192,13 +203,12 @@ int main(){
         // suspend;
         // char *c = strtok(NULL, " ");
         // printf("c: %s\n", c);
+
         // this is wrong; you can suspend job
-        if(jobNo == 0){ // || strcmp(c," ")==0 || strcmp(c,"") == 0){
+        if(jobNo < 0){ // || strcmp(c," ")==0 || strcmp(c,"") == 0){
           printf("Please indicate the job number!\n");
           break;
         }
-
-
         // find the jobNo and kill
         while(CP->next != NULL){
           if(CP->job_num == jobNo){
