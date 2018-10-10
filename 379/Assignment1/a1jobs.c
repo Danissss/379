@@ -5,8 +5,8 @@
 #include <time.h>
 #include <sys/types.h>
 #include <signal.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
-#include <assert.h>
 #include <string.h>
 
 #define typename(x) _Generic((x), \
@@ -15,9 +15,8 @@
     default: "other")
 
 #define MAX_JOBS 32
-
-
 time_t curtime; //in second
+
 
 struct cp_info  // child process information
 {
@@ -78,7 +77,6 @@ int main(){
   char input[20];
   int pid_num = getpid();
   pid_t pid;
-  int current_job = 0;
   struct rlimit {
       rlim_t rlim_cur;  /* Soft limit */
       rlim_t rlim_max;  /* Hard limit (ceiling for rlim_cur) */
@@ -89,20 +87,20 @@ int main(){
   // Get current time  
   curtime = time(NULL);
 
-  
-
+  static int current_job = 0;
   while(state != 0){
-    printf("Xuan[%i] :",pid_num);
 
+    printf("Xuan[%d] :",pid_num);
     char userInput[50];
     fgets(userInput,50,stdin);
-    // printf("userInput = %s\n",userInput);
-    // separate the command by space;
-    char *command;
-    int converted_int;
-    // int jobNo = malloc(sizeof(int));
-    int jobNo;
-    char *jobNo_str;
+
+    
+    
+    char *command; // get first command name
+    int converted_int; // convert the command name to int for switch 
+    int jobNo; // record the jobNo from user input
+
+
     if(strcmp(userInput,"\n") != 0){
       command = strtok(userInput," \n"); // this is for get the first word/command from input 
       // printf("command is = %s\n",command);
@@ -112,15 +110,16 @@ int main(){
         if(c == NULL){
           jobNo = -1;
           
-        }else if(strcmp(c,"") == 0 ||strcmp(c," ") == 0|| strcmp(c,"\n") == 0){
+        }else if(strcmp(c,"") == 0 || strcmp(c," ") == 0 || strcmp(c,"\n") == 0){
           jobNo = -1;
         }
-        else if(strcmp(typename(c), "int") != 0){
+        else if(strcmp(typename(c), "int") != 0){ //this needs to fix
           jobNo = -1;
         }
         else
         {
           jobNo = atoi(c);
+          printf("%d\n", jobNo);
         }
         
         //printf("jobNo: %d\n",jobNo);
@@ -133,7 +132,7 @@ int main(){
       if(strcmp(command,"run")==0){
         char *b = malloc(sizeof(int)*10);
         
-
+        
         while(b != NULL){
           b = strtok(NULL," \n");
           //printf("b = %s\n",b);
@@ -148,37 +147,24 @@ int main(){
         }
 
         printf("num_arugment = %d\n",num_arugment);
-        // while (command!= NULL) {
-        //     char *b = malloc(sizeof(int)*100);
-        //     printf("element: %s\n", b);
-        // } 
+
       }
-      // for(int i=0;i<10;i++){
-      //   command++;
-      //   printf("command=%s\n",command);
-      // }
+
       command = strcat(command,"\n"); // add \n to match the converted_int function
-      //printf("command2 : %s\n",command);
+
       converted_int = convert_command_int(command);
-      //printf("int = %d\n",converted_int);
-      // sscanf(userInput,"suspend %d",jobNo);
-      // printf("jobNo is = %d\n",*jobNo);
+
     }
     else{
       converted_int = 10; //any number that break the switch loop
     }
-    // since switch will only take int; convert_command_int
-    // convert string to corresponding code;
 
-    // printf("command is %s\n",command);
-    
-    // printf("converted_int = %d\n",converted_int);
-    //int n = sscanf(userInput, "Timings results : %d", &time);
     switch(converted_int){
       case 1:
         // printf("this is case 1\n");
         break;
       case 2:
+
         pid = fork();
         if (pid == 0){
           if(MAX_JOBS == current_job){
@@ -187,11 +173,16 @@ int main(){
           }
           CP->child_pid = getpid();
           CP->job_num = current_job;
+          printf("%d\n",current_job);
           printf("successfully create a child process! pid = %d\n",CP->child_pid);
           current_job++;
+          CP++; //increment the stack (that contain the process info)
+          printf("%d\n",current_job);
+          break;
         }
         else if (pid > 0){
-          printf("still in parents process!\n");
+          printf("Still in parents process!\n");
+          break;
         }
         else if (pid < 0){
           printf("Failed to fork a child process!\n");
@@ -200,10 +191,10 @@ int main(){
         // printf("this is case 2\n");
         break;
       case 3:
-        // suspend;
-        // char *c = strtok(NULL, " ");
-        // printf("c: %s\n", c);
-
+        // suspend
+        for(int i=0; i<current_job; i++){
+          printf("current_job = %d\n", CP->job_num);
+        }
         // this is wrong; you can suspend job
         if(jobNo < 0){ // || strcmp(c," ")==0 || strcmp(c,"") == 0){
           printf("Please indicate the job number!\n");
@@ -211,8 +202,10 @@ int main(){
         }
         // find the jobNo and kill
         while(CP->next != NULL){
+          printf("%d\n",CP->job_num);
           if(CP->job_num == jobNo){
-            kill(CP->child_pid, SIGSTOP);
+
+            // kill(CP->child_pid, SIGSTOP);
           }
           else{
             continue;
@@ -235,10 +228,8 @@ int main(){
         break;
       case 7:
         getTime(curtime);
-        break;
         state = 0;
-        break;
-        
+        return 0;
       case 8:
         printf("Xuan[%i] :Wrong command!\n",pid_num);
         break;
@@ -248,7 +239,6 @@ int main(){
 
   }
 
-  // curtime = time(NULL) - curtime;
   
   return 0;
 
