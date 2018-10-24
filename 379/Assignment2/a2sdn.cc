@@ -1,6 +1,7 @@
 // C++
 #include <iostream>
 #include <fstream>
+#include <string>
 // C
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,6 +11,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <sys/select.h>
 #include <sys/wait.h>
 #include <string.h>
 
@@ -20,6 +22,15 @@ using namespace std;
 #define PRI 4
 #define S_LOW 0
 #define S_HIGH 1000
+
+typedef enum {ADD, QUERY, OPEN, ACK } KIND;	  // Message kinds
+// char KINDNAME[][MAXWORD]= { "STR", "INT", "FLOAT", "DONE", "ACK" };
+typedef struct {int port1; int port2; char port3[10]; } PORT;
+
+typedef union { PORT ports; char switch_no[5]; } MSG;
+
+typedef struct { KIND kind; MSG msg; } FRAME;
+
 
 
 
@@ -141,7 +152,41 @@ char* RemoveDigits(char* input)
     return input;
 }
 
+// Ref: eclass
 
+MSG composeMSTR (const char *a, const int port1, const int port2, const char *port3)
+{
+    MSG  msg;
+
+    memset( (char *) &msg, 0, sizeof(msg) );
+    msg.ports.port1 = port1;
+    msg.ports.port2 = port2;
+    strcpy(msg.ports.port3,port3);
+    strcpy(msg.switch_no,a);
+    return msg;
+} 
+
+void sendFrame (int fd, KIND kind, MSG *msg)
+{
+    FRAME  frame;
+
+    assert (fd >= 0);
+    memset( (char *) &frame, 0, sizeof(frame) );
+    frame.kind= kind;
+    frame.msg=  *msg;
+    write (fd, (char *) &frame, sizeof(frame));
+}
+       
+FRAME rcvFrame (int fd)
+{
+    int    len; 
+    FRAME  frame;
+
+    assert (fd >= 0);
+    memset( (char *) &frame, 0, sizeof(frame) );
+    read (fd, (char *) &frame, sizeof(frame));
+    return frame;		  
+}
 
 
 
