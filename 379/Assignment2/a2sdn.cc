@@ -27,9 +27,7 @@ using namespace std;
 
 typedef enum {ADD, QUERY, OPEN, ACK } KIND;	  // Message kinds
 char KINDNAME[][MAXWORD]= { "ADD", "QUERY", "OPEN", "ACK" };
-typedef struct {int port1; int port2; char port3[10]; } PORT;
-
-typedef union { PORT ports; char switch_no[5]; } MSG;
+typedef struct {int port1; int port2; char port3[10]; char switch_no[5]; } MSG;
 
 typedef struct { KIND kind; MSG msg; } FRAME;
 
@@ -93,10 +91,7 @@ void controller(){
 		cout << "frame_port:" << frame.msg.ports.port1 << endl;
 		sendFrame(fifo_1_1, ACK, &msg);     
 		
-
-
-
-
+		
 
 		/////////////////////////////////////
 		FD_ZERO(&readfds);
@@ -176,17 +171,16 @@ void switches(char **arg, const string &input){
 	// 	frame = rcvFrame(fifo_1_1); 
 	// 	cout << frame.msg.ports.port1 << endl;
 	// }
-
+	// reciving frame
+	send_msg = composeMSTR(input,port1,port2,port3); // seg fault 
+	// cout<< " port1: " <<send_msg.ports.port1 << endl;
+	sendFrame(fifo_0_1,OPEN,&send_msg);
 
 
 	while(1){
 
 
-		// reciving frame
-		send_msg = composeMSTR(input,port1,port2,port3); // seg fault 
-		// cout<< " port1: " <<send_msg.ports.port1 << endl;
-		sendFrame(fifo_0_1,OPEN,&send_msg);
-
+	
 		if (input.compare("sw1")==0){ 
 			frame = rcvFrame(fifo_1_1); 
 			// cout << frame.msg.ports.port1 << endl;
@@ -261,8 +255,6 @@ MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3)
 void sendFrame (int fd, KIND kind, MSG *msg)
 {
     FRAME  frame;
-
-    assert (fd >= 0);
     memset( (char *) &frame, 0, sizeof(frame) );
     frame.kind= kind;
     frame.msg=  *msg;
@@ -270,15 +262,27 @@ void sendFrame (int fd, KIND kind, MSG *msg)
 }
        
 FRAME rcvFrame (int fd)
-{
-    int    len; 
+{ 
     FRAME  frame;
 
-    assert (fd >= 0);
     memset( (char *) &frame, 0, sizeof(frame) );
     read (fd, (char *) &frame, sizeof(frame));
     return frame;		  
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
