@@ -114,7 +114,24 @@ void switches(char **arg, const string &input){
 	fd_set readfds;
 	// variable for select()
 
+
+	// composePacket and send
+	FRAME frame;
+	MSG send_msg;
+	send_msg = composeMSTR(input,port1,port2,port3);
+	sendFrame(fifo_0_1,STR,&send_msg);
+	frame= rcvFrame(fifo_2_1);
+
+
 	while(1){
+
+
+		// reciving frame
+
+
+
+
+
 
 		FD_ZERO(&readfds);
 		FD_SET(fd,&readfds);
@@ -126,7 +143,16 @@ void switches(char **arg, const string &input){
 		ret = read(fd, (void*)buf, 10);
 		if(ret != -1){
 
-			printf("buf = %s\n", buf);
+			if(strcmp(buf,"list")==10){
+
+
+			}
+			else if (strcmp(buf,"exit")==10){
+				break;
+			}
+			else{
+				cout << "unknown command! [list/exit]" << endl;
+			}
 		}
 	}
 
