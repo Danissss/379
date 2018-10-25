@@ -271,7 +271,7 @@ void sendFrame (int fd, MSG *msg)
 	string s_no  = msg->switch_no;
 	string kind  = msg->kind;
 	char *MESSAGE = (char*)malloc(sizeof(char)*100);
-	strcat(MESSAGE,"port1");
+	strcat(MESSAGE,port1);
 	strcat(MESSAGE,port2);
 
 	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
