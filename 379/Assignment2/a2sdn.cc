@@ -130,6 +130,10 @@ void switches(char **arg, const string &input){
 	int dest_ip_low;
 	int dest_ip_high;
 
+
+
+	int ADMIT;
+
 	// cout << arg[1] << endl; // sw
 	// cout << arg[2] << endl; // file name
 	// cout << arg[3] << endl; // port 1
@@ -140,6 +144,9 @@ void switches(char **arg, const string &input){
 	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
 	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port2 = n;}
 	strcpy(port3,"100-110");
+	int DEST_PORT_LOW, DEST_PORT_HIGH;
+	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
+	// cout << SCR_PORT << endl;
 	//parse String
 	ifstream myfile;
 	string STRING;
@@ -149,9 +156,31 @@ void switches(char **arg, const string &input){
         getline(myfile,STRING); // Saves the line in STRING.
         // cout<< STRING.substr(0,1) <<endl;// Prints our STRING.
         // cout <<STRING.substr(0,1).compare("") << endl;
+        int src_port, dest_port;
+        // vector<string> temp_v_for_STRING;
         if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
-        	cout << STRING << endl;
-        	
+        	// cout << STRING << endl;
+        	// if the first sw# is current this sw#; do something
+        	if(STRING.substr(0,3).compare(input)==0){
+        		// split(STRING, temp_v_for_STRING,"  ");
+        		// dump( cout, temp_v_for_STRING );
+        		cout << STRING.substr(10,10) << endl;
+        		string src_port_s = STRING.substr(5,5);
+        		string dest_port_s = STRING.substr(10,10);
+        		src_port  = atoi(src_port_s.c_str());
+        		dest_port = atoi(dest_port_s.c_str());
+        		if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
+        			ADMIT++;
+
+        		}
+        		// string arr[2];
+        		// int i = 0;
+        		// stringstream ssin(STRING);
+        		// while (ssin.good() && i < 2){
+        		// 	ssin >> arr[i];
+        		// 	++i;
+        		// }
+        	}
         }
 
     }
