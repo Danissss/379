@@ -31,15 +31,8 @@ char KINDNAME[][MAXWORD]= { "ADD", "QUERY", "OPEN", "ACK" };
 typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch_no[5]; } MSG;
 
 
-
-
-
-
-
 // fifo declare
-int fifo_0_1, fifo_1_1;
-
-
+int fifo_0_1, fifo_1_1, fifo_2_1, fifo_3_1, fifo_4_1, fifo_5_1, fifo_6_1, fifo_7_1;
 
 
 //function declare
@@ -56,11 +49,6 @@ string rcvFrame (int fd);
 
 
 void controller(){
-
-
-
-
-
 
 	// variable for select()
 	// Ref: Youtube channels (keyword: select toturial)
@@ -79,6 +67,10 @@ void controller(){
 	MSG    msg;
 	string rvc_msg;
 
+
+
+
+
 	while(1){
 		
 
@@ -91,7 +83,7 @@ void controller(){
 		// recive msg from switches;
 		// how to make sure that controller print the msg when it arrived?
 		rvc_msg = rcvFrame(fifo_0_1);
-		cout <<"recived from switches: " << rvc_msg << endl;
+		cout << "recived from switches: " << rvc_msg << endl;
 		sendFrame(fifo_1_1, &msg);  
 
 		
@@ -143,13 +135,29 @@ void switches(char **arg, const string &input){
 	// cout << arg[3] << endl; // port 1
 	// cout << arg[4] << endl; // port 2
 	// cout << arg[5] << endl; // port 3 100-110
-	ofstream myfile;
+	
 
 	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
 	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port2 = n;}
 	strcpy(port3,"100-110");
+	//parse String
+	ifstream myfile;
+	string STRING;
+	myfile.open(arg[2]);
+	while(!myfile.eof()) // To get you all the lines.
+	{
+        getline(myfile,STRING); // Saves the line in STRING.
+        // cout<< STRING.substr(0,1) <<endl;// Prints our STRING.
+        // cout <<STRING.substr(0,1).compare("") << endl;
+        if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
+        	cout << STRING << endl;
+        	
+        }
 
+    }
+	myfile.close();
 
+	exit(0);
 	// variable for select()
 	int fd;
 	char buf[11];
@@ -163,7 +171,6 @@ void switches(char **arg, const string &input){
 	MSG send_msg;
 	char kind[10] = "ACK";
 	string rvc_msg;
-
 	// send msg to controller;
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
 	sendFrame(fifo_0_1,&send_msg);
