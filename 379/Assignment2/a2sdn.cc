@@ -88,11 +88,10 @@ void controller(){
 		string ab_string = "nothing";
 		char ab_char[5] = "no";
 		msg = composeMSTR(ab_string,0,0,ab_char,kind);
-
 		// recive msg from switches;
+		// how to make sure that controller print the msg when it arrived?
 		rvc_msg = rcvFrame(fifo_0_1);
-		cout << rvc_msg[1] << endl;
-		cout << msg.port1 << endl;
+		cout <<"recived from switches: " << rvc_msg << endl;
 		sendFrame(fifo_1_1, &msg);  
 
 		
@@ -135,7 +134,7 @@ void switches(char **arg, const string &input){
 	int    port1;
 	int    port2;
 	char  *port3;
-	port3= new char[10]; // allocate memory for pointer *port3;
+	port3= new char[20]; // allocate memory for pointer *port3;
 	int dest_ip_low;
 	int dest_ip_high;
 
@@ -146,8 +145,8 @@ void switches(char **arg, const string &input){
 	// cout << arg[5] << endl; // port 3 100-110
 	ofstream myfile;
 
-	if(strcmp(arg[3],"null") == 0){ port1 = -1; }
-	if(strcmp(arg[4],"null") == 0){ port2 = -1; }
+	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
+	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port2 = n;}
 	strcpy(port3,"100-110");
 
 
@@ -160,30 +159,17 @@ void switches(char **arg, const string &input){
 	// variable for select()
 
 
-	// composePacket and send
-	
 
-	
-	
-
-	// send_msg = composeMSTR(input,port1,port2,port3); // seg fault 
-	// sendFrame(fifo_0_1,OPEN,&send_msg);
-
-	// if (input.compare("sw1")==0){ 
-	// 	frame = rcvFrame(fifo_1_1); 
-	// 	cout << frame.msg.ports.port1 << endl;
-	// }
-	// reciving frame
 	MSG send_msg;
 	char kind[10] = "ACK";
 	string rvc_msg;
 
 	// send msg to controller;
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
-	cout << send_msg.port1 << endl;
 	sendFrame(fifo_0_1,&send_msg);
 	// recive msg from controller;
 	rvc_msg = rcvFrame(fifo_1_1); 
+	cout << "recived from controller: " << rvc_msg << endl;
 
 
 	while(1){
@@ -254,29 +240,19 @@ MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3, char *ki
 // recive the msg struct, but send the string object;
 void sendFrame (int fd, MSG *msg)
 {
-    // FRAME  frame;
-    // memset( (char *) &frame, 0, sizeof(frame) );
-    // frame.kind= kind;
-    // frame.msg=  *msg;
-    // write (fd, (char *) &frame, sizeof(frame));
-    // cout << msg->port1 <<";"<< msg->port2 <<";"<< msg->port3 <<";"<< msg->kind << endl;
-	// char MESSAGE[10][MAXWORD] = {msg->port1,msg->port2};
-	// strcpy(MESSAGE[2],msg->port3);
-	// strcpy(MESSAGE[3],msg->kind);
-	// strcpy(MESSAGE[4],msg->switch_no);
 
 	string port1 = to_string(msg->port1);
 	string port2 = to_string(msg->port2);
 	string port3 = msg->port3;
 	string s_no  = msg->switch_no;
 	string kind  = msg->kind;
-	char *MESSAGE = (char*)malloc(sizeof(char)*100);
-	strcat(MESSAGE,port1);
-	strcat(MESSAGE,port2);
+
 
 	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
-	cout << MESSAGE << endl;
-	write (fd, MESSAGE, sizeof(MESSAGE));
+	const char * MESSAGE_P = MESSAGE.c_str();
+
+
+	write (fd, MESSAGE_P, sizeof(MESSAGE_P));
 
 }
 
@@ -284,11 +260,12 @@ void sendFrame (int fd, MSG *msg)
 string rcvFrame (int fd)
 { 
     // FRAME  frame;
-	string MESSAGE;
+	char * MESSAGE_P = new char[100];
     // memset( (char *) &frame, 0, sizeof(frame) );
-    read (fd, MESSAGE, sizeof(MESSAGE));
-    // return frame;	
-
+    read (fd, MESSAGE_P, sizeof(MESSAGE_P));	
+    
+    string str(MESSAGE_P);
+    // cout << "msg from rcvFrame: " << MESSAGE_P << endl;
     return MESSAGE_P;	  
 }
 

@@ -16,7 +16,7 @@ test:
 	gcc -o test test.c
 
 fifo_remove:
-	rm fifo-*
+	rm fifo_*
 
 fifo:
 	touch fifo_0_1
