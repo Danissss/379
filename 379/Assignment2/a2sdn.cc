@@ -130,9 +130,19 @@ void switches(char **arg, const string &input){
 	int dest_ip_low;
 	int dest_ip_high;
 
+	int DELIVER  = 0;
+	int pri      = PRI;
+	int pkgCount = 0;
 
+	int ADMIT    = 0;
+	int OPEN     = 0;
+	int ACK      = 0;
+	int QUERY    = 0;
+	int ADDRULE  = 0;
+	int RELAYOUT = 0;
+	int RELAYIN  = 0;
 
-	int ADMIT;
+	int num_of_rules = 0;
 
 	// cout << arg[1] << endl; // sw
 	// cout << arg[2] << endl; // file name
@@ -171,22 +181,21 @@ void switches(char **arg, const string &input){
         		dest_port = atoi(dest_port_s.c_str());
         		if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
         			ADMIT++;
+        			DELIVER++;
+        			pkgCount++;
 
+        		}else{
+        			DELIVER++;
+        			ADDRULE++;
+        			QUERY++;
         		}
-        		// string arr[2];
-        		// int i = 0;
-        		// stringstream ssin(STRING);
-        		// while (ssin.good() && i < 2){
-        		// 	ssin >> arr[i];
-        		// 	++i;
-        		// }
         	}
         }
 
     }
 	myfile.close();
 
-	exit(0);
+	// exit(0);
 	// variable for select()
 	int fd;
 	char buf[11];
@@ -208,6 +217,26 @@ void switches(char **arg, const string &input){
 	cout << "recived from controller: " << rvc_msg << endl;
 
 
+
+
+	// prepare the print for list command 
+	// string srcIP = "0-1000";
+	// predefine num_of_rules as 1
+	string str(port3);
+	num_of_rules = 1;
+	string list_command[num_of_rules];
+	// switch information
+	for (int i=0; i< num_of_rules; i++){
+		string i_s = to_string(i);
+		string pkgCount_s = to_string(pkgCount);
+		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER:3" + "pri= 4, pkgCount= " + pkgCount_s + ")";
+		list_command[i] = single_command;
+	}
+	// general information (total)
+	string general_info_1 = "Packet Stats: \n" + "\t Recived: ADMIT:" + ADMIT + ", ACK: " + ACK + ", ADDRULE: " + ADDRULE + ", RELAYIN: "+ RELAYIN +"\n";
+	string general_info_2 = "\t Recived: OPEN:" + OPEN + ", QUERY: " + QUERY + ", RELAYOUT: " + RELAYOUT + "\n";
+	string general_info = general_info_1 + general_info_2;
+
 	while(1){
 
 
@@ -221,7 +250,10 @@ void switches(char **arg, const string &input){
 		if(ret != -1){
 
 			if(strcmp(buf,"list")==10){
-
+				for(int i=0; i<num_of_rules; i++){
+					cout << list_command[i] << endl;
+				}
+				cout << general_info << endl;
 
 			}
 			else if (strcmp(buf,"exit")==10){
@@ -232,7 +264,6 @@ void switches(char **arg, const string &input){
 			}
 		}
 	}
-
 
 
 }
