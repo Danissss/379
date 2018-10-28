@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>CMPUT 379 Assignment 1 Project Report</title>
+</head>
+<body>
+	<h1>Objectives</h1>
+	<p>
+		This project give me experience of understanding how the utilize fifo to transmit message or signal from one process to different one. It also points out the importance of utilizing the I/O multiplexing for nonblocking I/O, which one program can recive different I/O from different resources. In our case, we need to make the program to receive fifo as well as user input (e.g. list and exit).
+		The assignment also introduces the concept of controller (i.e. router, server) and switches (i.e. clients) that how they communicate through fifo; although, there are multiply methods for communication, but the concept of communication are similar. 
+	</p>
+
+
+
+	<h1>Design Overview</h1>
+	<p>
+		<ul>
+			<li>
+				There is only one controller and 7 switches exist, which controller will listen all 7 switches and be able to recieve the message (e.g. requesting for open port) from swithes and also need to send back message (e.g. allow for connection). My program can indeed create a controller and numbers of switches that can communicate with each other through fifo. My switch will send open request to controller; and controller will send switches the allowance message for confirmation.
+			</li>
+			<li>
+				My program also can recieve multi-I/O from different sources without interruption.
+			</li>
+			<li>
+				The message that send between controller and switch are construct as string. After controller/switch gets the message, it will parse the string based on pre-defined rules. In the later implementation, the c struct should be used for construct the message.
+			</li>
+			<li>
+				My program also keep updating the current statistics about the packet sent and recieved; as well as the number of package got and lost during processing the packet. The "list" command inside the controller and switch program can list the current statistics of the package information. "Exit" command will terminate the program
+			</li>
+		</ul>
+	</p>
+
+
+
+	<h1>Project status</h1>
+	<p>
+	You can successfully create controller and swithes by using correct function call.<br>
+	Each time a new swith starts, it will sends message to controller; and then, the controller will sends confirm message back.<br>
+	"list" command in each process will print out the current statistics of the package information; and "exit" command will terminate the program <br>
+	The difficult part of this assignment is 
+	<ul>
+		<li>
+			1)It is not clear how to transmit the message with c struct; hence I used the string as structure of message.
+		</li>
+
+		<li>
+			2)Parsing information is very complex; regular expression could be a great helper for future implementation, especially with more complex packet structure.
+		</li>
+	</ul>
+	</p>
+
+
+	<h1>Testing and Results</h1>
+	<p>
+		The way that I did test my program is firstly using the command example from assignment description, while since I am trying to make the program looks like the one as description shows. Then I tested with some extreme values such as try to send package with destination port address 100000; which clearly, no switch will accept since each switch's acceptable range is less than hundreds <br>
+		I am just trying to implement all the function correctly currently.
+	</p>
+
+
+	<h1>Acknowledgments</h1>
+	<p>
+		<ul>
+			<li>StackOverflow</li>
+			<li>YouTube</li>
+			<li>Advanced Programming in the Unix Environment 3rd Edition</li>
+			<li>eClass</li>
+		</ul>
+	</p>
+
+
+</body>
+</html>
