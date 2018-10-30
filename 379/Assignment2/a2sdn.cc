@@ -35,20 +35,50 @@ typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch
 int fifo_0_1, fifo_1_1, fifo_2_1, fifo_3_1, fifo_4_1, fifo_5_1, fifo_6_1, fifo_7_1;
 
 
-//function declare
+//function declartion
 char* RemoveDigits(char* input);
-void controller();
+void controller(int n_swithes);
 void switches(char **arg, const string &input);
 MSG composeMSTR (const string &a,  int port1,  int port2, char *port3, char *kind);
 void sendFrame (int fd, MSG *msg);
 string rcvFrame (int fd);
+void set_cpu_time();
 
 
 
+// from 379 slide
+// while (1) {
+// 	rval= poll (pfd, 2, timeout);
+// 	if (pfd[0].revents & POLLIN) { // check socket
+// 		if (fgets (buf, 80, sfpin) != NULL) printf("%s", buf);
+// 	}
+// 	if (pfd[1].revents & POLLIN) {
+// 		fgets (buf, 80, stdin);
+// 		write (s, buf, strlen(buf) ); }
+// 	}
+// 	printf ("\n"); close(s); return 0; 
+// }
+//
+// use asynchronous I/O to get notify the receiver of incoming data using signal?
+
+void controller(int n_swithes){
 
 
+	int OPEN = 0;
+	int ACK  = 0;
+	int QUERY= 0;
+	int ADD  = 0;
+	// vector<string> switches(7);
+	char switches[n_swithes][50];
 
-void controller(){
+
+	// for (int n_swith=0;n_swith <n_swithes; n_swith++){
+	// 	rvc_msg = rcvFrame(fifo_0_1); // read() inside the rvcFrame;
+	// 	sendFrame(fifo_1_1, &msg);   
+	// 	// store the msg value from switches
+	// }
+
+
 
 	// variable for select()
 	// Ref: Youtube channels (keyword: select toturial)
@@ -59,15 +89,13 @@ void controller(){
 	fd_set readfds;
 	// variable for select()
 
-
-
-
-	
-
 	MSG    msg;
 	string rvc_msg;
 
-
+	char kind[10] = "OPEN";
+	string ab_string = "null";
+	char ab_char[5] = "null";
+	msg = composeMSTR(ab_string,0,0,ab_char,kind);
 
 
 
@@ -76,18 +104,22 @@ void controller(){
 
 		// reciving fifo file
 		// controller always recive fifo_0_1 file 
-		char kind[10] = "OPEN";
-		string ab_string = "nothing";
-		char ab_char[5] = "no";
-		msg = composeMSTR(ab_string,0,0,ab_char,kind);
+		
 		// recive msg from switches;
 		// how to make sure that controller print the msg when it arrived?
+		// how to get rcvFrame wait for different switch?
 		rvc_msg = rcvFrame(fifo_0_1);
-		cout << "recived from switches: " << rvc_msg << endl;
 		sendFrame(fifo_1_1, &msg);  
+		cout << rvc_msg << endl;
+		// rvc_msg = rcvFrame(fifo_0_1);
+		// sendFrame(fifo_1_1, &msg);
+		// rvc_msg = rcvFrame(fifo_0_1);
+		// sendFrame(fifo_1_1, &msg);
+		// rvc_msg = rcvFrame(fifo_0_1);
+		// sendFrame(fifo_1_1, &msg);
+		// rvc_msg = rcvFrame(fifo_0_1);
+		// sendFrame(fifo_1_1, &msg);
 
-		
-		
 
 		/////////////////////////////////////
 		FD_ZERO(&readfds);
@@ -217,8 +249,6 @@ void switches(char **arg, const string &input){
 	cout << "recived from controller: " << rvc_msg << endl;
 
 
-
-
 	// prepare the print for list command 
 	// string srcIP = "0-1000";
 	// predefine num_of_rules as 1
@@ -233,9 +263,10 @@ void switches(char **arg, const string &input){
 		list_command[i] = single_command;
 	}
 	// general information (total)
-	string general_info_1 = "Packet Stats: \n" + "\t Recived: ADMIT:" + ADMIT + ", ACK: " + ACK + ", ADDRULE: " + ADDRULE + ", RELAYIN: "+ RELAYIN +"\n";
-	string general_info_2 = "\t Recived: OPEN:" + OPEN + ", QUERY: " + QUERY + ", RELAYOUT: " + RELAYOUT + "\n";
-	string general_info = general_info_1 + general_info_2;
+
+	// string general_info_1 = "Packet Stats: \n" + "\t Recived: ADMIT:" + ADMIT + ", ACK: " + ACK; //+ ", ADDRULE: " + ADDRULE + ", RELAYIN: "+ RELAYIN +"\n";
+	// string general_info_2 = "\t Recived: OPEN:" + OPEN + ", QUERY: " + QUERY + ", RELAYOUT: " + RELAYOUT + "\n";
+	// string general_info = general_info_1 + general_info_2;
 
 	while(1){
 
@@ -253,7 +284,7 @@ void switches(char **arg, const string &input){
 				for(int i=0; i<num_of_rules; i++){
 					cout << list_command[i] << endl;
 				}
-				cout << general_info << endl;
+				// cout << general_info << endl;
 
 			}
 			else if (strcmp(buf,"exit")==10){
@@ -326,20 +357,20 @@ void sendFrame (int fd, MSG *msg)
        
 string rcvFrame (int fd)
 { 
-    // FRAME  frame;
+
 	char * MESSAGE_P = new char[100];
-    // memset( (char *) &frame, 0, sizeof(frame) );
-    read (fd, MESSAGE_P, sizeof(MESSAGE_P));	
-    
+    read (fd, MESSAGE_P, sizeof(MESSAGE_P));
     string str(MESSAGE_P);
-    // cout << "msg from rcvFrame: " << MESSAGE_P << endl;
     return MESSAGE_P;	  
 }
 
 
-
-
-
+void set_cpu_time(){
+	struct rlimit limit;
+	getrlimit(RLIMIT_CPU,&limit);
+	limit.rlim_cur = 60*100;
+	setrlimit(RLIMIT_CPU,&limit);
+}
 
 
 
@@ -389,8 +420,8 @@ int main(int argc, char** argv)
 			cout << "Too many switches (MAX: 7)!" << endl;
 			return 0;
 		}
-		
-		controller();
+		set_cpu_time();
+		controller(n_swithes);
 	}
 	else if(strcmp(argv_1, "sw") == 0){
 		if(argc != 6){
@@ -398,7 +429,7 @@ int main(int argc, char** argv)
 			return 0;
 		}
 		// try to open the dat.file
-		
+		set_cpu_time();
 		switches(argv,argv_1_rep);
 
 
