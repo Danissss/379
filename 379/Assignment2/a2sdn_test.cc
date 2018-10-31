@@ -1,5 +1,6 @@
 // C++
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <string>
 #include <cstdlib>
@@ -47,6 +48,7 @@ string rcvFrame (int fd);
 int split(char inStr[],  char token[][MAXWORD], char fs[]);
 char * format_swi(const string &a);
 void set_cpu_time();
+string convert_int_to_string(int input);
 
 
 
@@ -118,14 +120,11 @@ void controller(int n_swithes){
 
 
 
+    string OPEN_s = convert_int_to_string(OPEN);
+	string ACK_s = convert_int_to_string(ACK);
+	string QUERY_s = convert_int_to_string(QUERY);
+	string ADD_s = convert_int_to_string(ADD);
 
-
-
-
-	string OPEN_s  = to_string(OPEN);
-	string ACK_s   = to_string(ACK);
-	string QUERY_s = to_string(QUERY);
-	string ADD_s   = to_string(ADD);
 	string general_info_1 = "Packet Stats:\n \t Recived:  OPEN:"+ OPEN_s +" QUERY:" +QUERY_s+"\n";
 	string general_info_2 = "\t Transmitted:  ACK:"+ACK_s+" ADD:"+ADD_s;
 
@@ -278,21 +277,21 @@ void switches(char **arg, const string &input){
 	string list_command[num_of_rules];
 	// switch information
 	for (int i=0; i< num_of_rules; i++){
-		string i_s = to_string(i);
-		string pkgCount_s = to_string(pkgCount);
-		string DELIVER_s  = to_string(DELIVER);
+		string i_s = convert_int_to_string(i);
+		string pkgCount_s = convert_int_to_string(pkgCount);
+		string DELIVER_s  = convert_int_to_string(DELIVER);
 		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
 		list_command[i] = single_command;
 	}
 
 	// general information (total)
-	string ADMIT_s    = to_string(ADMIT);
-	string ACK_s      = to_string(ACK);
-	string ADDRULE_s  = to_string(ADDRULE);
-	string RELAYIN_s  = to_string(RELAYIN);
-	string OPEN_s     = to_string(OPEN);
-	string QUERY_s    = to_string(QUERY);
-	string RELAYOUT_s = to_string(RELAYOUT);
+	string ADMIT_s    = convert_int_to_string(ADMIT);
+	string ACK_s      = convert_int_to_string(ACK);
+	string ADDRULE_s  = convert_int_to_string(ADDRULE);
+	string RELAYIN_s  = convert_int_to_string(RELAYIN);
+	string OPEN_s     = convert_int_to_string(OPEN);
+	string QUERY_s    = convert_int_to_string(QUERY);
+	string RELAYOUT_s = convert_int_to_string(RELAYOUT);
 	string general_info_1 = "Packet Stats: \n \t Recived: ADMIT:" + ADMIT_s + ", ACK: " + ACK_s + ", ADDRULE: " + ADDRULE_s + ", RELAYIN: "+ RELAYIN_s +"\n";
 	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
 	string general_info = general_info_1 + general_info_2;
@@ -377,25 +376,37 @@ void sendFrame (int fd, MSG *msg)
 
 	char *MESSAGE_P = (char *) malloc(8192);
 
-	string s = to_string(msg->port1);
-	char const *port1 = s.c_str();
-	string s2 = to_string(msg->port2);
-	char const *port2 = s2.c_str();
+	// string s =  convert_int_to_string(msg->port1);
+	// // char *port1 = s.c_str();
+	// char *port1 = s[0];
+	// // cout << s << endl; // -1 
+	// // cout << port1 << endl; // -1 
+	// string s2 = convert_int_to_string(msg->port2);
+	// // char *port2 = s2.c_str();
+	// char *port2 = s2[0];
 
-	strcat(MESSAGE_P,port1);
-	strcat(MESSAGE_P,";");
-	strcat(MESSAGE_P,port2);
-	strcat(MESSAGE_P,";");
-	strcat(MESSAGE_P,msg->port3);
-	strcat(MESSAGE_P,";");
-	strcat(MESSAGE_P,msg->switch_no);
-	strcat(MESSAGE_P,";");
-	strcat(MESSAGE_P,msg->kind);
-	strcat(MESSAGE_P,";");
+	// strcat(MESSAGE_P,port1);
+	// strcat(MESSAGE_P,";");
+	// strcat(MESSAGE_P,port2);
+	// strcat(MESSAGE_P,";");
+	// strcat(MESSAGE_P,msg->port3);
+	// strcat(MESSAGE_P,";");
+	// strcat(MESSAGE_P,msg->switch_no);
+	// strcat(MESSAGE_P,";");
+	// strcat(MESSAGE_P,msg->kind);
+	// strcat(MESSAGE_P,";");
+	
+	string port1 = convert_int_to_string(msg->port1);
+	string port2 = convert_int_to_string(msg->port2);
+	string port3 = msg->port3;
+	string s_no  = msg->switch_no;
+	string kind  = msg->kind;
 
+	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
+	char const * MESSAGE_P_P = MESSAGE.c_str();
 	// cout << "sending msg: " << MESSAGE_P << endl;
-
-	write (fd, MESSAGE_P, 8192); // write the message_p into fifo file with constraint 8192
+	// cout << MESSAGE_P << endl;
+	write (fd, MESSAGE_P_P, 8192); // write the message_p into fifo file with constraint 8192
 
 }
 
@@ -418,7 +429,7 @@ int split(char inStr[],  char token[][MAXWORD], char fs[])
 {
     int    i, count;
     char   *tokenp, inStrCopy[MAXLINE];
-
+	cout << "print from split" << inStr << endl; // this prints nothing
     count= 0;
     memset (inStrCopy, 0, sizeof(inStrCopy));
 
@@ -441,14 +452,31 @@ char * format_swi(const string &a){
 	// char const * msg = a.c_str();
 	char strings[100];
 	char delimiter[1];
-	strcpy(strings, a.c_str());
+	cout << a << endl;
+
+	///////////////////////////////////////
+	// strcpy(strings, a.c_str());
+	// cout << "strings " << strings << endl;
 	strcpy(delimiter,";");
+
+
+	//////////////////////////////////
+	char * tab2 = new char [a.length()+1];
+	strcpy (tab2, a.c_str());
+
+	///////////////////////////////////
+
+	// char tab2[1024];
+	// strncpy(tab2, temp.c_str(), sizeof(tab2));
+	// tab2[sizeof(tab2) - 1] = 0;
+	///////////////////////////////////
+
 
 	// cout << msg << endl;
 	char splited_str[MAXLINE][MAXWORD];
 	// int** splited_str = new int*[MAXWORD];
-
-	split(strings,splited_str,delimiter);
+	// char string_ing[100] = "-1;-1;100-110;sw1;ACK"; // this will pass successfully
+	split(tab2,splited_str,delimiter);
 
 	// cout << splited_str[0] << endl;
 	// cout << splited_str[1] << endl;
@@ -467,6 +495,12 @@ char * format_swi(const string &a){
 	return MESSAGE_P;
 }
 
+string convert_int_to_string(int input){
+	stringstream ss;
+    ss << input;
+    string s=ss.str();
+	return s;
+}
 
 void set_cpu_time(){
 	struct rlimit limit;
@@ -474,11 +508,6 @@ void set_cpu_time(){
 	limit.rlim_cur = 60*100;
 	setrlimit(RLIMIT_CPU,&limit);
 }
-
-
-
-
-
 
 
 

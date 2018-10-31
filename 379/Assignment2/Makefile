@@ -4,7 +4,7 @@ default: compile
 
 compile: 
 	# gcc -o a2sdn a2sdn.c
-	g++ -o a2sdn a2sdn.cc
+	# g++ -o a2sdn a2sdn.cc
 	g++ -o a2sdn_test a2sdn_test.cc
 
 tar:
