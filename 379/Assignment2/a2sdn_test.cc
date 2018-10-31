@@ -24,10 +24,12 @@ using namespace std;
 #define PRI 4
 #define S_LOW 0
 #define S_HIGH 1000
-#define MAXWORD 10
+
+#define MAXLINE     132
+#define MAX_NTOKEN  MAXLINE
+#define MAXWORD     32
 
 typedef enum {ADD, QUERY, OPEN, ACK } KIND;	  // Message kinds
-char KINDNAME[][MAXWORD]= { "ADD", "QUERY", "OPEN", "ACK" };
 typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch_no[5]; } MSG;
 
 
@@ -42,6 +44,8 @@ void switches(char **arg, const string &input);
 MSG composeMSTR (const string &a,  int port1,  int port2, char *port3, char *kind);
 void sendFrame (int fd, MSG *msg);
 string rcvFrame (int fd);
+int split(char inStr[],  char token[][MAXWORD], char fs[]);
+char * format_swi(const string &a);
 void set_cpu_time();
 
 
@@ -102,42 +106,36 @@ void controller(int n_swithes){
 	char ab_char[5] = "null";
 	msg = composeMSTR(ab_string,0,0,ab_char,kind);
 
-	rvc_msg = rcvFrame(fifo_0_1);
-	cout << "recieved msg from switches: " << rvc_msg << endl;
-	// cout << rvc_msg << endl;
-	sendFrame(fifo_1_1, &msg); 
-	cout << "in while"  << endl;
-	
-	// char *nul = (char *) malloc(100);
-	// read(fifo_0_1,nul,100);
-	// cout << nul << endl;
-	// write(fifo_1_1,msg,100);
 
-	// rvc_msg = rcvFrame(fifo_0_1);
-	// cout << "recieved msg from switches: " << rvc_msg << endl;
-	// sendFrame(fifo_1_1,&msg);
+
+	rvc_msg = rcvFrame(fifo_0_1);
+	sendFrame(fifo_1_1, &msg);
+	cout << "recieved msg from switches: " << rvc_msg << endl;
+	char *switch_1 = format_swi(rvc_msg);
+
+	strcpy(switches[0],switch_1);
+
+
+
+
+
+
+
+
+	string OPEN_s  = to_string(OPEN);
+	string ACK_s   = to_string(ACK);
+	string QUERY_s = to_string(QUERY);
+	string ADD_s   = to_string(ADD);
+	string general_info_1 = "Packet Stats:\n \t Recived:  OPEN:"+ OPEN_s +" QUERY:" +QUERY_s+"\n";
+	string general_info_2 = "\t Transmitted:  ACK:"+ACK_s+" ADD:"+ADD_s;
+
+	string general_info = general_info_1 + general_info_2;
+
+
 
 
 	while(1){
 		
-
-		// reciving fifo file
-		// controller always recive fifo_0_1 file 
-		
-		// recive msg from switches;
-		// how to make sure that controller print the msg when it arrived?
-		// how to get rcvFrame wait for different switch?
-		 
-		// cout << rvc_msg << endl;
-
-		// rvc_msg = rcvFrame(fifo_0_1);
-		// sendFrame(fifo_1_1, &msg);
-		// rvc_msg = rcvFrame(fifo_0_1);
-		// sendFrame(fifo_1_1, &msg);
-		// rvc_msg = rcvFrame(fifo_0_1);
-		// sendFrame(fifo_1_1, &msg);
-		// rvc_msg = rcvFrame(fifo_0_1);
-		// sendFrame(fifo_1_1, &msg);
 
 
 		///////////////////////////////////
@@ -154,7 +152,10 @@ void controller(int n_swithes){
 			// cout << strcmp(buf,"list") << endl;
 
 			if(strcmp(buf,"list")==10){
-				cout << "list command" << endl;
+				for(int i=0; i<n_swithes; i++){
+					cout << switches[i] << endl;
+				}
+				cout << general_info << endl;
 
 			}
 			else if (strcmp(buf,"exit")==10){
@@ -264,19 +265,7 @@ void switches(char **arg, const string &input){
 	// send msg to controller;
 
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
-	
-	// write(fifo_0_1,send_msg,8192);
- //    char *nul = (char *) malloc(8192);
- //    read(fifo_1_1,nul,8192);
- //    cout << nul << endl;
-//
-
-
-    
 	sendFrame(fifo_0_1,&send_msg);
-	cout << "sendFrame from switch" << endl;
-
-	// recive msg from controller;
 	rvc_msg = rcvFrame(fifo_1_1); 
 	cout << "recived from controller: " << rvc_msg << endl;
 
@@ -291,14 +280,22 @@ void switches(char **arg, const string &input){
 	for (int i=0; i< num_of_rules; i++){
 		string i_s = to_string(i);
 		string pkgCount_s = to_string(pkgCount);
-		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER:3 " + "pri= 4, pkgCount= " + pkgCount_s + ")";
+		string DELIVER_s  = to_string(DELIVER);
+		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
 		list_command[i] = single_command;
 	}
-	// general information (total)
 
-	// string general_info_1 = "Packet Stats: \n" + "\t Recived: ADMIT:" + ADMIT + ", ACK: " + ACK; //+ ", ADDRULE: " + ADDRULE + ", RELAYIN: "+ RELAYIN +"\n";
-	// string general_info_2 = "\t Recived: OPEN:" + OPEN + ", QUERY: " + QUERY + ", RELAYOUT: " + RELAYOUT + "\n";
-	// string general_info = general_info_1 + general_info_2;
+	// general information (total)
+	string ADMIT_s    = to_string(ADMIT);
+	string ACK_s      = to_string(ACK);
+	string ADDRULE_s  = to_string(ADDRULE);
+	string RELAYIN_s  = to_string(RELAYIN);
+	string OPEN_s     = to_string(OPEN);
+	string QUERY_s    = to_string(QUERY);
+	string RELAYOUT_s = to_string(RELAYOUT);
+	string general_info_1 = "Packet Stats: \n \t Recived: ADMIT:" + ADMIT_s + ", ACK: " + ACK_s + ", ADDRULE: " + ADDRULE_s + ", RELAYIN: "+ RELAYIN_s +"\n";
+	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
+	string general_info = general_info_1 + general_info_2;
 
 	while(1){
 
@@ -316,7 +313,7 @@ void switches(char **arg, const string &input){
 				for(int i=0; i<num_of_rules; i++){
 					cout << list_command[i] << endl;
 				}
-				// cout << general_info << endl;
+				cout << general_info << endl;
 
 			}
 			else if (strcmp(buf,"exit")==10){
@@ -379,18 +376,12 @@ void sendFrame (int fd, MSG *msg)
 {
 
 	char *MESSAGE_P = (char *) malloc(8192);
-	// char *port1 = new char[10];
-	// char *port2 = new char[10];
-	// port1 = msg->port1 +'0';
-	// port2 = msg->port2 +'0';
+
 	string s = to_string(msg->port1);
 	char const *port1 = s.c_str();
 	string s2 = to_string(msg->port2);
 	char const *port2 = s2.c_str();
-	// char *port1 = msg->port1;
-	// char *port2 = msg->port2;
 
-	// char const* s_no = msg->switch_no.c_str();
 	strcat(MESSAGE_P,port1);
 	strcat(MESSAGE_P,";");
 	strcat(MESSAGE_P,port2);
@@ -401,17 +392,8 @@ void sendFrame (int fd, MSG *msg)
 	strcat(MESSAGE_P,";");
 	strcat(MESSAGE_P,msg->kind);
 	strcat(MESSAGE_P,";");
-	// string port1 = to_string(msg->port1);
-	// string port2 = to_string(msg->port2);
-	// string port3 = msg->port3;
-	// string s_no  = msg->switch_no;
-	// string kind  = msg->kind;
 
-
-	// string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
-	// char const * MESSAGE_P = MESSAGE.c_str();
-
-	cout << "sending msg: " << MESSAGE_P << endl;
+	// cout << "sending msg: " << MESSAGE_P << endl;
 
 	write (fd, MESSAGE_P, 8192); // write the message_p into fifo file with constraint 8192
 
@@ -422,17 +404,68 @@ string rcvFrame (int fd)
 { 
 	int len; 
 	char * MESSAGE_P = (char *) malloc(8192);
-	// char * MESSAGE_P = new char[100];
-	// len = read (fd, MESSAGE_P, sizeof(MESSAGE_P)*10); // works
-	cout << "rcvFRAME" << endl;
+
     len = read (fd, MESSAGE_P, 8192);
 
-    cout << "len from rcvFrame: " << len << endl;
+
     string str(MESSAGE_P);
-    cout << "value return from read: " << MESSAGE_P << endl;
+
     return MESSAGE_P;	  
 }
 
+
+int split(char inStr[],  char token[][MAXWORD], char fs[])
+{
+    int    i, count;
+    char   *tokenp, inStrCopy[MAXLINE];
+
+    count= 0;
+    memset (inStrCopy, 0, sizeof(inStrCopy));
+
+    for (i=0; i < MAX_NTOKEN; i++) memset (token[i], 0, sizeof(token[i]));
+
+    strcpy (inStrCopy, inStr);
+    if ( (tokenp= strtok(inStr, fs)) == NULL) return(0);
+
+    strcpy(token[count],tokenp); count++;
+
+    while ( (tokenp= strtok(NULL, fs)) != NULL) {
+        strcpy(token[count],tokenp); count++;
+    }
+    strcpy (inStr, inStrCopy);
+    return(count);
+}
+
+
+char * format_swi(const string &a){
+	// char const * msg = a.c_str();
+	char strings[100];
+	char delimiter[1];
+	strcpy(strings, a.c_str());
+	strcpy(delimiter,";");
+
+	// cout << msg << endl;
+	char splited_str[MAXLINE][MAXWORD];
+	// int** splited_str = new int*[MAXWORD];
+
+	split(strings,splited_str,delimiter);
+
+	// cout << splited_str[0] << endl;
+	// cout << splited_str[1] << endl;
+	// cout << splited_str[2] << endl;
+	// cout << splited_str[3] << endl;
+	// cout << splited_str[4] << endl;
+	char *MESSAGE_P = (char *) malloc(8192);
+	string switch_no(splited_str[3]);
+	string port1(splited_str[0]);
+	string port2(splited_str[1]);
+	string port3(splited_str[2]);
+	string message = "["+ switch_no +"] port1= " +port1+ ", port2= " +port2+", port3= "+port3+"\n";
+ 	// cout << message << endl;
+ 	char const *cstr = message.c_str();
+ 	strcpy(MESSAGE_P,cstr);
+	return MESSAGE_P;
+}
 
 
 void set_cpu_time(){
