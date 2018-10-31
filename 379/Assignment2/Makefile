@@ -5,6 +5,7 @@ default: compile
 compile: 
 	# gcc -o a2sdn a2sdn.c
 	g++ -o a2sdn a2sdn.cc
+	g++ -o a2sdn_test a2sdn_test.cc
 
 tar:
 	tar -cvf submit.tar *
@@ -20,10 +21,10 @@ fifo_remove:
 
 fifo:
 	mkfifo fifo_0_1
-	touch fifo_1_1
-	touch fifo_2_1
-	touch fifo_3_1
-	touch fifo_4_1
-	touch fifo_5_1	
-	touch fifo_6_1
-	touch fifo_7_1
+	mkfifo fifo_1_1
+	mkfifo fifo_2_1
+	mkfifo fifo_3_1
+	mkfifo fifo_4_1
+	mkfifo fifo_5_1	
+	mkfifo fifo_6_1
+	mkfifo fifo_7_1

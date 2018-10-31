@@ -102,15 +102,16 @@ void controller(int n_swithes){
 	char ab_char[5] = "null";
 	msg = composeMSTR(ab_string,0,0,ab_char,kind);
 
-	// rvc_msg = rcvFrame(fifo_0_1);
-	// cout << "recieved msg from switches: " << rvc_msg << endl;
-	// // cout << rvc_msg << endl;
-	// sendFrame(fifo_1_1, &msg); 
-	// cout << "in while"  << endl;
-	char *nul = (char *) malloc(100);
-	read(fifo_0_1,nul,100);
-	cout << nul << endl;
-	write(fifo_1_1,"open",100);
+	rvc_msg = rcvFrame(fifo_0_1);
+	cout << "recieved msg from switches: " << rvc_msg << endl;
+	// cout << rvc_msg << endl;
+	sendFrame(fifo_1_1, &msg); 
+	cout << "in while"  << endl;
+	
+	// char *nul = (char *) malloc(100);
+	// read(fifo_0_1,nul,100);
+	// cout << nul << endl;
+	// write(fifo_1_1,msg,100);
 
 	// rvc_msg = rcvFrame(fifo_0_1);
 	// cout << "recieved msg from switches: " << rvc_msg << endl;
@@ -264,10 +265,10 @@ void switches(char **arg, const string &input){
 
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
 	
-	write(fifo_0_1,"hello",100);
-    char *nul = (char *) malloc(100);
-    read(fifo_1_1,nul,100);
-    cout << nul << endl;
+	// write(fifo_0_1,send_msg,8192);
+ //    char *nul = (char *) malloc(8192);
+ //    read(fifo_1_1,nul,8192);
+ //    cout << nul << endl;
 //
 
 
@@ -377,15 +378,38 @@ MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3, char *ki
 void sendFrame (int fd, MSG *msg)
 {
 
-	string port1 = to_string(msg->port1);
-	string port2 = to_string(msg->port2);
-	string port3 = msg->port3;
-	string s_no  = msg->switch_no;
-	string kind  = msg->kind;
+	char *MESSAGE_P = (char *) malloc(8192);
+	// char *port1 = new char[10];
+	// char *port2 = new char[10];
+	// port1 = msg->port1 +'0';
+	// port2 = msg->port2 +'0';
+	string s = to_string(msg->port1);
+	char const *port1 = s.c_str();
+	string s2 = to_string(msg->port2);
+	char const *port2 = s2.c_str();
+	// char *port1 = msg->port1;
+	// char *port2 = msg->port2;
+
+	// char const* s_no = msg->switch_no.c_str();
+	strcat(MESSAGE_P,port1);
+	strcat(MESSAGE_P,";");
+	strcat(MESSAGE_P,port2);
+	strcat(MESSAGE_P,";");
+	strcat(MESSAGE_P,msg->port3);
+	strcat(MESSAGE_P,";");
+	strcat(MESSAGE_P,msg->switch_no);
+	strcat(MESSAGE_P,";");
+	strcat(MESSAGE_P,msg->kind);
+	strcat(MESSAGE_P,";");
+	// string port1 = to_string(msg->port1);
+	// string port2 = to_string(msg->port2);
+	// string port3 = msg->port3;
+	// string s_no  = msg->switch_no;
+	// string kind  = msg->kind;
 
 
-	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
-	const char * MESSAGE_P = MESSAGE.c_str();
+	// string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
+	// char const * MESSAGE_P = MESSAGE.c_str();
 
 	cout << "sending msg: " << MESSAGE_P << endl;
 

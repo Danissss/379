@@ -39,7 +39,7 @@ int fifo_0_1, fifo_1_1, fifo_2_1, fifo_3_1, fifo_4_1, fifo_5_1, fifo_6_1, fifo_7
 char* RemoveDigits(char* input);
 void controller(int n_swithes);
 void switches(char **arg, const string &input);
-MSG composeMSTR (const string &a,  int port1,  int port2, char *port3, char *kind);
+const char* composeMSTR (const string &a,  int port1,  int port2, char *port3, char *kind);
 void sendFrame (int fd, MSG *msg);
 string rcvFrame (int fd);
 void set_cpu_time();
@@ -94,23 +94,27 @@ void controller(int n_swithes){
 	fd_set readfds;
 	// variable for select()
 
-	MSG    msg;
+	// MSG    msg;
 	string rvc_msg;
 
 	char kind[10] = "OPEN";
 	string ab_string = "null";
 	char ab_char[5] = "null";
+	const char * msg = (char *) malloc(8192);
 	msg = composeMSTR(ab_string,0,0,ab_char,kind);
-
+	char *recieved_msg = (char *) malloc(8192);
+	read(fifo_0_1,recieved_msg,8192);
+	cout << "recieve msg from switches " << recieved_msg << endl;
+	write(fifo_1_1,msg,8192);
 	// rvc_msg = rcvFrame(fifo_0_1);
 	// cout << "recieved msg from switches: " << rvc_msg << endl;
 	// // cout << rvc_msg << endl;
 	// sendFrame(fifo_1_1, &msg); 
 	// cout << "in while"  << endl;
-	char *nul = (char *) malloc(100);
-	read(fifo_0_1,nul,100);
-	cout << nul << endl;
-	write(fifo_1_1,"open",100);
+	// char *nul = (char *) malloc(100);
+	// read(fifo_0_1,nul,100);
+	// cout << nul << endl;
+	// write(fifo_1_1,"open",100);
 
 	// rvc_msg = rcvFrame(fifo_0_1);
 	// cout << "recieved msg from switches: " << rvc_msg << endl;
@@ -257,27 +261,27 @@ void switches(char **arg, const string &input){
 
 
 
-	MSG send_msg;
+	// MSG send_msg;
 	char kind[10] = "ACK";
 	string rvc_msg;
 	// send msg to controller;
-
+	const char * send_msg = (char *) malloc(8192);
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
 	
-	write(fifo_0_1,"hello",100);
-    char *nul = (char *) malloc(100);
-    read(fifo_1_1,nul,100);
+	write(fifo_0_1,send_msg,8192);
+    char *nul = (char *) malloc(8192);
+    read(fifo_1_1,nul,8192);
     cout << nul << endl;
 //
 
 
     
-	sendFrame(fifo_0_1,&send_msg);
-	cout << "sendFrame from switch" << endl;
+	// sendFrame(fifo_0_1,&send_msg);
+	// cout << "sendFrame from switch" << endl;
 
-	// recive msg from controller;
-	rvc_msg = rcvFrame(fifo_1_1); 
-	cout << "recived from controller: " << rvc_msg << endl;
+	// // recive msg from controller;
+	// rvc_msg = rcvFrame(fifo_1_1); 
+	// cout << "recived from controller: " << rvc_msg << endl;
 
 
 	// prepare the print for list command 
@@ -357,19 +361,32 @@ char* RemoveDigits(char* input)
 
 // Ref: eclass
 
-MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3, char *kind )
+const char * composeMSTR (const string &a,  int port1,  int port2,  char *port3, char *kind )
 {
-    MSG  msg;
+    const char * message = (char *) malloc(8192);
 
-    memset( (char *) &msg, 0, sizeof(msg) );
-   
-    msg.port1 = port1;
-    msg.port2 = port2;
-    strcpy(msg.port3,port3);
-    strcpy(msg.kind,kind);
-   
-    strncpy(msg.switch_no,a.c_str(),sizeof(msg.switch_no)); // port1 value changed at this point;
-    return msg;
+    // memset( (char *) &msg, 0, sizeof(msg) );
+   	// char port_1[5] = itoa(port1);
+   	string port_1 = to_string(port1);
+   	string port_2 = to_string(port2);
+   	// string port3 = port3;
+   	string s_no  = a;
+   	// string kind  = kind;
+   	// string port_3 = to_string(port3);
+   	// string kind   = to_string(kind);
+   	string port_3(port3);
+   	string kind_(kind);
+
+    // msg.port1 = port1;
+    // msg.port2 = port2;
+    // strcpy(msg.port3,port3);
+    // strcpy(msg.kind,kind);
+    // strncpy(msg.switch_no,a.c_str(),sizeof(msg.switch_no)); // port1 value changed at this point;
+    string MESSAGE = port_1 + ";" + port_2 + ";" + port_3 + ";" + s_no + ";" + kind_;
+    message = MESSAGE.c_str();
+
+    
+    return message;
 } 
 
 
