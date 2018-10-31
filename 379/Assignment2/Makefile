@@ -19,7 +19,7 @@ fifo_remove:
 	rm fifo_*
 
 fifo:
-	touch fifo_0_1
+	mkfifo fifo_0_1
 	touch fifo_1_1
 	touch fifo_2_1
 	touch fifo_3_1

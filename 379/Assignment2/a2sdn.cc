@@ -61,6 +61,11 @@ void set_cpu_time();
 //
 // use asynchronous I/O to get notify the receiver of incoming data using signal?
 
+
+
+// bug1: can't recieve the full msg
+// bug2: read message even when there is no incoming packet
+
 void controller(int n_swithes){
 
 
@@ -109,8 +114,11 @@ void controller(int n_swithes){
 		// how to make sure that controller print the msg when it arrived?
 		// how to get rcvFrame wait for different switch?
 		rvc_msg = rcvFrame(fifo_0_1);
+		cout << "recieved msg from switches: " << rvc_msg << endl;
+		// cout << rvc_msg << endl;
 		sendFrame(fifo_1_1, &msg);  
-		cout << rvc_msg << endl;
+		// cout << rvc_msg << endl;
+
 		// rvc_msg = rcvFrame(fifo_0_1);
 		// sendFrame(fifo_1_1, &msg);
 		// rvc_msg = rcvFrame(fifo_0_1);
@@ -121,7 +129,7 @@ void controller(int n_swithes){
 		// sendFrame(fifo_1_1, &msg);
 
 
-		/////////////////////////////////////
+		///////////////////////////////////
 		FD_ZERO(&readfds);
 		FD_SET(fd,&readfds);
 		select(8,&readfds,NULL,NULL,NULL);
@@ -134,7 +142,7 @@ void controller(int n_swithes){
 		if(ret != -1){
 			// cout << strcmp(buf,"list") << endl;
 			if(strcmp(buf,"list")==10){
-
+				cout << "list command" << endl;
 
 			}
 			else if (strcmp(buf,"exit")==10){
@@ -206,7 +214,7 @@ void switches(char **arg, const string &input){
         	if(STRING.substr(0,3).compare(input)==0){
         		// split(STRING, temp_v_for_STRING,"  ");
         		// dump( cout, temp_v_for_STRING );
-        		cout << STRING.substr(10,10) << endl;
+        		// cout << STRING.substr(10,10) << endl;
         		string src_port_s = STRING.substr(5,5);
         		string dest_port_s = STRING.substr(10,10);
         		src_port  = atoi(src_port_s.c_str());
@@ -242,8 +250,12 @@ void switches(char **arg, const string &input){
 	char kind[10] = "ACK";
 	string rvc_msg;
 	// send msg to controller;
+
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
+	// cout << "sending msg: " << send_msg << endl;
 	sendFrame(fifo_0_1,&send_msg);
+
+
 	// recive msg from controller;
 	rvc_msg = rcvFrame(fifo_1_1); 
 	cout << "recived from controller: " << rvc_msg << endl;
@@ -259,7 +271,7 @@ void switches(char **arg, const string &input){
 	for (int i=0; i< num_of_rules; i++){
 		string i_s = to_string(i);
 		string pkgCount_s = to_string(pkgCount);
-		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER:3" + "pri= 4, pkgCount= " + pkgCount_s + ")";
+		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER:3 " + "pri= 4, pkgCount= " + pkgCount_s + ")";
 		list_command[i] = single_command;
 	}
 	// general information (total)
@@ -298,6 +310,13 @@ void switches(char **arg, const string &input){
 
 
 }
+
+
+
+
+
+
+
 
 
 
@@ -349,20 +368,26 @@ void sendFrame (int fd, MSG *msg)
 	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
 	const char * MESSAGE_P = MESSAGE.c_str();
 
+	cout << "sending msg: " << MESSAGE_P << endl;
 
-	write (fd, MESSAGE_P, sizeof(MESSAGE_P));
+	write (fd, MESSAGE_P, 8192); // write the message_p into fifo file with constraint 8192
 
 }
 
        
 string rcvFrame (int fd)
 { 
-
-	char * MESSAGE_P = new char[100];
-    read (fd, MESSAGE_P, sizeof(MESSAGE_P));
+	int len; 
+	char * MESSAGE_P = (char *) malloc(8192);
+	// char * MESSAGE_P = new char[100];
+	// len = read (fd, MESSAGE_P, sizeof(MESSAGE_P)*10); // works
+    len = read (fd, MESSAGE_P, 8192);
+    cout << "len from rcvFrame: " << len << endl;
     string str(MESSAGE_P);
+    cout << "value return from read: " << MESSAGE_P << endl;
     return MESSAGE_P;	  
 }
+
 
 
 void set_cpu_time(){
@@ -407,6 +432,7 @@ int main(int argc, char** argv)
         cout << "NO fifo_1_1 EXITS" << endl;
         return 0;
     }
+
 
 	// cout << argv_1 << endl;
 	if (strcmp(argv_1,"cont") == 0){
