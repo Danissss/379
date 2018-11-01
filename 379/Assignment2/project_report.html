@@ -6,7 +6,7 @@
 <body>
 	<h1>Objectives</h1>
 	<p>
-		This project give me experience of understanding how the utilize fifo to transmit message or signal from one process to different one. It also points out the importance of utilizing the I/O multiplexing for nonblocking I/O, which one program can recive different I/O from different resources. In our case, we need to make the program to receive fifo as well as user input (e.g. list and exit).
+		This project give me experience of understanding how the utilize fifo to transmit message or signal from one process to different one. It also points out the importance of utilizing the I/O multiplexing for nonblocking I/O, which one program can recive different I/O from different resources. In our case, we need to make the program to receive fifo as well as user input (e.g. list and exit).<br>
 		The assignment also introduces the concept of controller (i.e. router, server) and switches (i.e. clients) that how they communicate through fifo; although, there are multiply methods for communication, but the concept of communication are similar. 
 	</p>
 
@@ -27,6 +27,9 @@
 			<li>
 				My program also keep updating the current statistics about the packet sent and recieved; as well as the number of package got and lost during processing the packet. The "list" command inside the controller and switch program can list the current statistics of the package information. "Exit" command will terminate the program
 			</li>
+			<li>
+				The file descriptor is stored in an array which allows the dynamically opening the number of switches and also to ensure no more switches will pass packets (ignore the packets).
+			</li>
 		</ul>
 	</p>
 
@@ -37,7 +40,7 @@
 	You can successfully create controller and swithes by using correct function call.<br>
 	Each time a new swith starts, it will sends message to controller; and then, the controller will sends confirm message back.<br>
 	"list" command in each process will print out the current statistics of the package information; and "exit" command will terminate the program <br>
-	The difficult part of this assignment is 
+	<p>The difficult part of this assignment is: 
 	<ul>
 		<li>
 			1)It is not clear how to transmit the message with c struct; hence I used the string as structure of message.
@@ -48,12 +51,13 @@
 		</li>
 	</ul>
 	</p>
+	</p>
 
 
 	<h1>Testing and Results</h1>
 	<p>
 		The way that I did test my program is firstly using the command example from assignment description, while since I am trying to make the program looks like the one as description shows. Then I tested with some extreme values such as try to send package with destination port address 100000; which clearly, no switch will accept since each switch's acceptable range is less than hundreds <br>
-		I am just trying to implement all the function correctly currently.
+		For the number of switches, if user limit 5 swithes by using command "./a2sdn cont 5", then after create 5 switches from 5 terminals, any later new switches won't be able to send any packet to the controller, nor controller will establish the connection with the out-of-limited switches.
 	</p>
 
 
