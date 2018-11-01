@@ -35,7 +35,7 @@ typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch
 
 
 // fifo declare
-int fifo_0_1, fifo_1_1, fifo_2_1, fifo_3_1, fifo_4_1, fifo_5_1, fifo_6_1, fifo_7_1;
+int fifo_1_0;
 // fifo declare as array:
 int *fifo;
 
@@ -98,7 +98,16 @@ void controller(int n_swithes){
 	// strcpy(switches[0],switch_1);
 	// OPEN++;
 	// ACK++;
-
+	for(int i = 0; i < n_swithes; i++){
+		rvc_msg = rcvFrame(fifo_0_1);
+		sendFrame(fifo[i], &msg);
+		// cout << "recieved msg from switches: " << rvc_msg << endl;
+		char *switch_1 = format_swi(rvc_msg);
+		strcpy(switches[0],switch_1);
+		OPEN = OPEN+1;
+		ACK = ACK+1;
+		// cout << "CURRENT OPEN= " << OPEN << endl;
+	}
 	// general idea
 	for(int i = 0; i < n_swithes; i++){
 		rvc_msg = rcvFrame(fifo_0_1);
@@ -530,8 +539,8 @@ int main(int argc, char** argv)
 
 
 	//open fifo for controller; this has to be opened;
-	if ( (fifo_0_1= open("fifo_1_0", O_RDWR)) < 0){
-        cout << "NO fifo_0_1 EXITS" << endl;
+	if ( (fifo_1_0= open("fifo_1_0", O_RDWR)) < 0){
+        cout << "NO fifo_1_0 EXITS" << endl;
         return 0;
 	}
 
@@ -557,7 +566,7 @@ int main(int argc, char** argv)
 			string num = convert_int_to_string(tmp_i);
 			string fifo_name_ = fifo_name + num;
 			char const * fifo_name_char = fifo_name_.c_str();
-			cout << fifo_name_char << endl;
+			// cout << fifo_name_char << endl;
 			if ((fifo[i] = open(fifo_name_char,O_RDWR)) < 0){
 				cout << "NO " << fifo_name_char << "EXIST!" << endl;
 				return 0; 
