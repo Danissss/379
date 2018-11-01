@@ -36,7 +36,8 @@ typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch
 
 // fifo declare
 int fifo_0_1, fifo_1_1, fifo_2_1, fifo_3_1, fifo_4_1, fifo_5_1, fifo_6_1, fifo_7_1;
-
+// fifo declare as array:
+int *fifo;
 
 //function declartion
 char* RemoveDigits(char* input);
@@ -51,7 +52,7 @@ void set_cpu_time();
 string convert_int_to_string(int input);
 
 
-
+// do we get all info at first, then print the info; if there is no packet is not send, we can't print info?
 void controller(int n_swithes){
 
 
@@ -90,14 +91,26 @@ void controller(int n_swithes){
 
 
 
-	rvc_msg = rcvFrame(fifo_0_1);
-	sendFrame(fifo_1_1, &msg);
-	cout << "recieved msg from switches: " << rvc_msg << endl;
-	char *switch_1 = format_swi(rvc_msg);
+	// rvc_msg = rcvFrame(fifo_0_1);
+	// sendFrame(fifo_1_1, &msg);
+	// cout << "recieved msg from switches: " << rvc_msg << endl;
+	// char *switch_1 = format_swi(rvc_msg);
+	// strcpy(switches[0],switch_1);
+	// OPEN++;
+	// ACK++;
 
-	strcpy(switches[0],switch_1);
-
-
+	// general idea
+	for(int i = 0; i < n_swithes; i++){
+		rvc_msg = rcvFrame(fifo_0_1);
+		sendFrame(fifo_1_1, &msg);
+		// cout << "recieved msg from switches: " << rvc_msg << endl;
+		char *switch_1 = format_swi(rvc_msg);
+		strcpy(switches[0],switch_1);
+		OPEN = OPEN+1;
+		ACK = ACK+1;
+		// cout << "CURRENT OPEN= " << OPEN << endl;
+	}
+	
 
 
     string OPEN_s = convert_int_to_string(OPEN);
@@ -132,7 +145,13 @@ void controller(int n_swithes){
 
 			if(strcmp(buf,"list")==10){
 				for(int i=0; i<n_swithes; i++){
-					cout << switches[i] << endl;
+					if (switches[i] != NULL){
+						cout << switches[i] << endl;
+					}
+					else{
+						break;
+					}
+					
 				}
 				cout << general_info << endl;
 
@@ -184,7 +203,8 @@ void switches(char **arg, const string &input){
 	
 
 	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
-	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port2 = n;}
+	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[4], "sw%d", &n);port2 = n;}
+	
 	strcpy(port3,"100-110");
 	int DEST_PORT_LOW, DEST_PORT_HIGH;
 	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
@@ -193,6 +213,7 @@ void switches(char **arg, const string &input){
 	ifstream myfile;
 	string STRING;
 	myfile.open(arg[2]);
+	
 	while(!myfile.eof()) // To get you all the lines.
 	{
         getline(myfile,STRING); // Saves the line in STRING.
@@ -200,10 +221,24 @@ void switches(char **arg, const string &input){
         // cout <<STRING.substr(0,1).compare("") << endl;
         int src_port, dest_port;
         // vector<string> temp_v_for_STRING;
+		// cout << STRING << endl;
         if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
         	// cout << STRING << endl;
         	// if the first sw# is current this sw#; do something
-        	if(STRING.substr(0,3).compare(input)==0){
+			// split string here:
+			char delimiter[1];
+			strcpy(delimiter," ");
+			char * tab2 = new char [STRING.length()+1];
+			strcpy (tab2, STRING.c_str());
+			char splited_str[MAXLINE][MAXWORD];
+			split(tab2,splited_str,delimiter);
+			// cout << splited_str[0] << endl;
+			// cout << splited_str[1] << endl;
+			// cout << splited_str[2] << endl;
+			string first_arg(splited_str[0]);
+			// cout << first_arg << "and " << input<< endl;
+        	if(first_arg.compare(input)==0){
+				// cout << STRING << endl; 
         		// split(STRING, temp_v_for_STRING,"  ");
         		// dump( cout, temp_v_for_STRING );
         		// cout << STRING.substr(10,10) << endl;
@@ -211,12 +246,14 @@ void switches(char **arg, const string &input){
         		string dest_port_s = STRING.substr(10,10);
         		src_port  = atoi(src_port_s.c_str());
         		dest_port = atoi(dest_port_s.c_str());
+				// cout << src_port << ":" << dest_port << endl;
         		if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
         			ADMIT++;
         			DELIVER++;
         			pkgCount++;
-
+					// cout << "destination port: " << dest_port << endl;
         		}else{
+					// cout << "destination port (else): " << dest_port << endl;
         			DELIVER++;
         			ADDRULE++;
         			QUERY++;
@@ -225,6 +262,7 @@ void switches(char **arg, const string &input){
         }
 
     }
+	
 	myfile.close();
 
 	// exit(0);
@@ -247,6 +285,8 @@ void switches(char **arg, const string &input){
 	sendFrame(fifo_0_1,&send_msg);
 	rvc_msg = rcvFrame(fifo_1_1); 
 	cout << "recived from controller: " << rvc_msg << endl;
+	OPEN++;
+	ACK++;
 
 
 	// prepare the print for list command 
@@ -356,25 +396,6 @@ void sendFrame (int fd, MSG *msg)
 
 	char *MESSAGE_P = (char *) malloc(8192);
 
-	// string s =  convert_int_to_string(msg->port1);
-	// // char *port1 = s.c_str();
-	// char *port1 = s[0];
-	// // cout << s << endl; // -1 
-	// // cout << port1 << endl; // -1 
-	// string s2 = convert_int_to_string(msg->port2);
-	// // char *port2 = s2.c_str();
-	// char *port2 = s2[0];
-
-	// strcat(MESSAGE_P,port1);
-	// strcat(MESSAGE_P,";");
-	// strcat(MESSAGE_P,port2);
-	// strcat(MESSAGE_P,";");
-	// strcat(MESSAGE_P,msg->port3);
-	// strcat(MESSAGE_P,";");
-	// strcat(MESSAGE_P,msg->switch_no);
-	// strcat(MESSAGE_P,";");
-	// strcat(MESSAGE_P,msg->kind);
-	// strcat(MESSAGE_P,";");
 	
 	string port1 = convert_int_to_string(msg->port1);
 	string port2 = convert_int_to_string(msg->port2);
@@ -409,7 +430,7 @@ int split(char inStr[],  char token[][MAXWORD], char fs[])
 {
     int    i, count;
     char   *tokenp, inStrCopy[MAXLINE];
-	cout << "print from split" << inStr << endl; // this prints nothing
+	// cout << "print from split" << inStr << endl; // this prints nothing
     count= 0;
     memset (inStrCopy, 0, sizeof(inStrCopy));
 
@@ -432,7 +453,7 @@ char * format_swi(const string &a){
 	// char const * msg = a.c_str();
 	char strings[100];
 	char delimiter[1];
-	cout << a << endl;
+
 
 	///////////////////////////////////////
 	// strcpy(strings, a.c_str());
@@ -497,7 +518,7 @@ void set_cpu_time(){
 
 int main(int argc, char** argv) 
 { 
-
+	//
 	if (argc < 3){
 		cout << "Too little arguments " << endl;
 		return 0;
@@ -508,18 +529,11 @@ int main(int argc, char** argv)
 	char *argv_1 = RemoveDigits(argv[1]);
 
 
-	//open fifo
-	if ( (fifo_0_1= open("fifo_0_1", O_RDWR)) < 0){
+	//open fifo for controller; this has to be opened;
+	if ( (fifo_0_1= open("fifo_1_0", O_RDWR)) < 0){
         cout << "NO fifo_0_1 EXITS" << endl;
         return 0;
 	}
-
-
-    if ( (fifo_1_1 = open("fifo_1_1", O_RDWR)) < 0){
-        cout << "NO fifo_1_1 EXITS" << endl;
-        return 0;
-    }
-
 
 	// cout << argv_1 << endl;
 	if (strcmp(argv_1,"cont") == 0){
@@ -533,9 +547,27 @@ int main(int argc, char** argv)
 			cout << "Too many switches (MAX: 7)!" << endl;
 			return 0;
 		}
+		// for number of switches, open each individual switches?
+		// can we just open all fifo and assume there will be that amount of fifo?
+		string fifo_name = "fifo_1_";
+		fifo = new int[n_swithes];
+		for (int i=0; i<n_swithes; i++){
+			int tmp_i = i;
+			tmp_i++;
+			string num = convert_int_to_string(tmp_i);
+			string fifo_name_ = fifo_name + num;
+			char const * fifo_name_char = fifo_name_.c_str();
+			cout << fifo_name_char << endl;
+			if ((fifo[i] = open(fifo_name_char,O_RDWR)) < 0){
+				cout << "NO " << fifo_name_char << "EXIST!" << endl;
+				return 0; 
+			}
+
+		}
 		set_cpu_time();
 		controller(n_swithes);
 	}
+	
 	else if(strcmp(argv_1, "sw") == 0){
 		if(argc != 6){
 			cout << "Required 6 arguments (e.g. ./a2sdn sw1 t1.dat null null 100-110)!" << endl;

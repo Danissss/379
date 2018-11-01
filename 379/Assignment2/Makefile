@@ -20,11 +20,11 @@ fifo_remove:
 	rm fifo_*
 
 fifo:
-	mkfifo fifo_0_1
+	mkfifo fifo_1_0
 	mkfifo fifo_1_1
-	mkfifo fifo_2_1
-	mkfifo fifo_3_1
-	mkfifo fifo_4_1
-	mkfifo fifo_5_1	
-	mkfifo fifo_6_1
-	mkfifo fifo_7_1
+	mkfifo fifo_1_2
+	mkfifo fifo_1_3
+	mkfifo fifo_1_4
+	mkfifo fifo_1_5	
+	mkfifo fifo_1_6
+	mkfifo fifo_1_7
