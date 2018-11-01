@@ -5,13 +5,13 @@ default: compile
 compile: 
 	# gcc -o a2sdn a2sdn.c
 	# g++ -o a2sdn a2sdn.cc
-	g++ -o a2sdn_test a2sdn_test.cc
+	g++ -o a2sdn a2sdn.cc
 
 tar:
 	tar -cvf submit.tar *
 
 clean:
-	find . -type f ! -name "*.c" ! -name "*.cc" ! -name "*.o" ! -name "Makefile" -exec rm {} \; 
+	find . -type f ! -name "*.html" ! -name "*.dat" ! -name "*.c" ! -name "*.cc" ! -name "*.o" ! -name "Makefile" -exec rm {} \; 
 
 test:
 	gcc -o test test.c
