@@ -52,26 +52,6 @@ string convert_int_to_string(int input);
 
 
 
-// from 379 slide
-// while (1) {
-// 	rval= poll (pfd, 2, timeout);
-// 	if (pfd[0].revents & POLLIN) { // check socket
-// 		if (fgets (buf, 80, sfpin) != NULL) printf("%s", buf);
-// 	}
-// 	if (pfd[1].revents & POLLIN) {
-// 		fgets (buf, 80, stdin);
-// 		write (s, buf, strlen(buf) ); }
-// 	}
-// 	printf ("\n"); close(s); return 0; 
-// }
-//
-// use asynchronous I/O to get notify the receiver of incoming data using signal?
-
-
-
-// bug1: can't recieve the full msg
-// bug2: read message even when there is no incoming packet
-
 void controller(int n_swithes){
 
 
