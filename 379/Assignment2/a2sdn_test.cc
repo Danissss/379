@@ -18,6 +18,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+// other header file
+//#include "global.h"
+
+
+
+
 using namespace std; 
   
 // macro definition 
@@ -99,26 +105,30 @@ void controller(int n_swithes){
 	// OPEN++;
 	// ACK++;
 	for(int i = 0; i < n_swithes; i++){
-		rvc_msg = rcvFrame(fifo_0_1);
-		sendFrame(fifo[i], &msg);
+		rvc_msg = rcvFrame(fifo_1_0);
+		cout << "before send msg controller" << endl;
+		int fifo_nm = fifo[i];
+		cout << fifo_nm << endl;
+		sendFrame(fifo_nm, &msg);
+		cout << "after send msg controller" << endl;
 		// cout << "recieved msg from switches: " << rvc_msg << endl;
 		char *switch_1 = format_swi(rvc_msg);
-		strcpy(switches[0],switch_1);
+		strcpy(switches[i],switch_1);
 		OPEN = OPEN+1;
 		ACK = ACK+1;
 		// cout << "CURRENT OPEN= " << OPEN << endl;
 	}
 	// general idea
-	for(int i = 0; i < n_swithes; i++){
-		rvc_msg = rcvFrame(fifo_0_1);
-		sendFrame(fifo_1_1, &msg);
-		// cout << "recieved msg from switches: " << rvc_msg << endl;
-		char *switch_1 = format_swi(rvc_msg);
-		strcpy(switches[0],switch_1);
-		OPEN = OPEN+1;
-		ACK = ACK+1;
-		// cout << "CURRENT OPEN= " << OPEN << endl;
-	}
+	// for(int i = 0; i < n_swithes; i++){
+	// 	rvc_msg = rcvFrame(fifo_0_1);
+	// 	sendFrame(fifo_1_1, &msg);
+	// 	// cout << "recieved msg from switches: " << rvc_msg << endl;
+	// 	char *switch_1 = format_swi(rvc_msg);
+	// 	strcpy(switches[0],switch_1);
+	// 	OPEN = OPEN+1;
+	// 	ACK = ACK+1;
+	// 	// cout << "CURRENT OPEN= " << OPEN << endl;
+	// }
 	
 
 
@@ -204,6 +214,17 @@ void switches(char **arg, const string &input){
 
 	int num_of_rules = 0;
 
+	//determine the fifo number
+	int fifo_n;
+	char const * tmp_input = input.c_str();
+	
+	sscanf(tmp_input, "sw%d", &fifo_n);
+	//cout << tmp_input << " and " << fifo_n << endl;
+	
+	int fifo_number = fifo[fifo_n-1];
+	
+	cout << fifo_number << endl;
+	
 	// cout << arg[1] << endl; // sw
 	// cout << arg[2] << endl; // file name
 	// cout << arg[3] << endl; // port 1
@@ -289,10 +310,12 @@ void switches(char **arg, const string &input){
 	char kind[10] = "ACK";
 	string rvc_msg;
 	// send msg to controller;
-
+	// cout << fifo_number << endl;	
 	send_msg = composeMSTR(input,port1,port2,port3,kind);
-	sendFrame(fifo_0_1,&send_msg);
-	rvc_msg = rcvFrame(fifo_1_1); 
+
+	sendFrame(fifo_1_0,&send_msg);
+	cout << "before get msg switches" << endl;
+	rvc_msg = rcvFrame(fifo_number); 
 	cout << "recived from controller: " << rvc_msg << endl;
 	OPEN++;
 	ACK++;
@@ -543,7 +566,21 @@ int main(int argc, char** argv)
         cout << "NO fifo_1_0 EXITS" << endl;
         return 0;
 	}
-
+	
+	string fifo_name = "fifo_1_";
+	fifo = new int[7];
+        for (int i = 0; i<7; i++){
+		int tmp_i = i;
+		tmp_i++;
+		string num = convert_int_to_string(tmp_i);
+		string fifo_name_ = fifo_name + num;
+		char const * fifo_name_char = fifo_name_.c_str();
+		if ((fifo[i] = open(fifo_name_char,O_RDWR))< 0){
+			cout << "NO" << fifo_name_char << "EXIST!" << endl;
+			return 0;
+		}
+	
+	}
 	// cout << argv_1 << endl;
 	if (strcmp(argv_1,"cont") == 0){
 		if (argc > 3){
@@ -558,21 +595,16 @@ int main(int argc, char** argv)
 		}
 		// for number of switches, open each individual switches?
 		// can we just open all fifo and assume there will be that amount of fifo?
-		string fifo_name = "fifo_1_";
-		fifo = new int[n_swithes];
-		for (int i=0; i<n_swithes; i++){
-			int tmp_i = i;
-			tmp_i++;
-			string num = convert_int_to_string(tmp_i);
-			string fifo_name_ = fifo_name + num;
-			char const * fifo_name_char = fifo_name_.c_str();
+		//string fifo_name = "fifo_1_";
+		//fifo = new int[n_swithes];
+		//for (int i=0; i<n_swithes; i++){
+			//int tmp_i = i;
+			//tmp_i++;
+			//string num = convert_int_to_string(tmp_i);
+			//string fifo_name_ = fifo_name + num;
+			//char const * fifo_name_char = fifo_name_.c_str();
 			// cout << fifo_name_char << endl;
-			if ((fifo[i] = open(fifo_name_char,O_RDWR)) < 0){
-				cout << "NO " << fifo_name_char << "EXIST!" << endl;
-				return 0; 
-			}
-
-		}
+			
 		set_cpu_time();
 		controller(n_swithes);
 	}
