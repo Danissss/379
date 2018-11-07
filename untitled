@@ -1,0 +1,211 @@
+1.1
+
+
+Threads: 
+A thread is a basic unit of CPU utilization; it comprises a thread ID, a program counter, a register set, and a stack. It shares with other threads belonging to the same process its code section, data section, and other operating-system resources, such as open files and signals. A traditional (or heavyweight) process has a single thread of control. If a process has multiple threads of control, it can perform more than one task at a time. Figure 4.1 illustrates the difference between a traditional single-threaded process and a multithreaded process. Example: A web browser might have one thread display images or text while another thread retrieves data from the network, for example. A word processor may have a thread for displaying graphics, another thread for responding to keystrokes from the user, and a third thread for performing spelling and grammar checking in the background.
+
+Process:
+A program executing in some environment which the program executing text segment, bss segment, heap, and stack. Context is shell environment variables, user access privileges, etc.
+
+a process != a program != a job
+
+
+
+
+error:
+When an error occurs in one of the UNIX System functions, a negative value is often returned, and the integer errno is usually set to a value that tells why. For example, the open function returns either a non-negative file descriptor if all is OK or −1 if an error occurs. An error from open has about 15 possible errno values, such as file doesn’t exist, permission problem, and so on. Some functions use a convention other than returning a negative value. For example, most functions that return a pointer to an object return a null pointer to indicate an error.
+perror():
+The perror function produces an error message on the standard error, based on the current value of errno, and returns.
+
+fork and execl:
+With fork, we can create new processes; and with the exec functions, we can initiate new programs.
+
+a zombie is a child that terminates with no waiting parent.
+an orphan is a child whose parent has terminated while the child is still running.
+
+
+
+Signals are viewed as software interrupts : they provide a way of handling asynchronous events.
+A signal is called posted (generated, or sent ) if the event that causes the signal has occurred
+A signal is called delivered (or caught ) if the associated action is taken
+A signal is called pending if it has been posted but not delivered, or blocked
+A signal is called blocked if it is pending because the target process does not want it delivered
+
+Signal disposition: Let the default apply; Ignore the signal (except SIGKILL and SIGSTOP); Catch it by a user defined function (signal handler).
+
+signal(): (from older unix system)
+The prototype for the signal function states that the function requires two arguments and returns a pointer to a function that returns nothing (void). The signal function’s first argument, signo, is an integer. The second argument is a pointer to a function that takes a single integer argument and returns nothing. The function whose address is returned as the value of signal takes a single integer argument (the final (int)). In plain English, this declaration says that the signal handler is passed a single integer argument (the signal number) and that it returns nothing. When we call signal to establish the signal handler, the second argument is a pointer to the function. The return value from signal is the pointer to the previous signal handler.
+
+sigaction(): (from POSIX system)
+The sigaction function allows us to examine or modify (or both) the action associated with a particular signal. This function supersedes the signal function from earlier releases of the UNIX System. The argument signo is the signal number whose action we are examining or modifying. If the act pointer is non-null, we are modifying the action. If the oact pointer is non-null, the system returns the previous action for the signal through the oact pointer. When changing the action for a signal, if the sa_handler field contains the address of a signal-catching function (as opposed to either of the constants SIG_IGN or SIG_DFL), then the sa_mask field specifies a set of signals that are added to the signal mask of the process before the signal-catching function is called. If and when the signal-catching function returns, the signal mask of the process is reset to its previous value. This way, we are able to block certain signals whenever a signal handler is invoked. The operating system includes the signal being delivered in the signal mask when the handler is invoked. Hence, we are guaranteed that whenever we are processing a given signal, another occurrence of that same signal is blocked until we’re finished processing the first occurrence.
+
+
+
+Files and pipes are two basic inter-process communication (IPC) facilities. By default, pipes provide half-duplex (!= unidirectional), reliable, flow-controlled, byte stream that can be established only between two related processes. Pipes are the oldest form of UNIX System IPC and are provided by all UNIX systems. Pipes have two limitations. Historically, they have been half duplex (i.e., data flows in only one direction). Some systems now provide full-duplex pipes, but for maximum portability, we should never assume that this is the case. Pipes can be used only between processes that have a common ancestor. Normally, a pipe is created by a process, that process calls fork, and the pipe is used between the parent and the child. Despite these limitations, half-duplex pipes are still the most commonly used form of IPC. Every time you type a sequence of commands in a pipeline for the shell to execute, the shell creates a separate process for each command and links the standard output of one process to the standard input of the next using a pipe.
+
+Unlike files, pipes are not named objects , but like files they are managed through a kernel descriptor table. each entry in the table is indexed by a small integer, called a descriptor ; all I/O is done through such descriptors.
+
+a process obtains a descriptor either by opening an object, or by inheritance from the parent process. By default: 0= stdin , 1= stdout , and 2= stderr .
+
+popen(): Forks a shell, passes the cmd_string to the shell, and returns a standard I/O file pointer.
+pclose(): Closes the standard I/O stream; Waits for cmd_string to finish; Returns the termination status of the shell
+
+Named Pipes (FIFOS): (i.e. FIFO is a named-pipe, but it is still a pipe)
+Like pipes, FIFOs are half-duplex channels, managed by the descriptor table (in fact, may be implemented as special files). FIFOs provide IPC between unrelated processes: possibly multiple writers (synchronization?), and a single reader.
+
+Summary:
+A thread is a flow of control within a process. A multithreaded process contains several different flows of control within the same address space. The benefits of multithreading include increased responsiveness to the user, resource sharing within the process, economy, and scalability factors, such as more efficient use of multiple processing cores.
+
+
+Concurrent servers:
+ Iterative server serves one client to completion before switch to another client; Concurrent server uses time division multiplexing to serve a number of clients, by knowing the number of clients and file descriptors at anytime, then listen to the client for reading the incoming requests.
+
+ To design the concurrent server, repeatedly poll the file descriptors using a (high level) Standard I/O Library function (e.g., fread()), or even a low-level I/O function (e.g., read()).
+
+PIPE()
+After calling pipe function as int pipe(int fd[2]), two file descriptors are returned through the fd argument: fd[0] is open for reading, and fd[1] is open for writing. The output of fd[1] is the input for fd[0].
+
+select() or poll() can recieve the multiple I/O from different sources; hence, as a server, it can process multiple request at same time asychronous 
+
+POLL():
+The main process (a read-only server) forks N children (write-only clients), and communicates via pipes. Each client loops a number of times writing a unique ’id’ to a specific pipe, and then sleeps for a while. At the end, the client closes the connection (sends ’-1’).
+
+
+
+
+Socket is a member of IPC (inter process communication?), which also use file descriptors
+TCP/IP communication: 
+Application data is carried inside a TCP (or UDP) segment that is carried inside an IP segment.
+(side note: A special address: 127.0.0.1 ≡ local host (loop back connection (useful in program development))
+Each TCP socket is identified by 4-tuple: source IP, source port number, destination IP, destination port number 
+
+connect():
+A client program specifies a server’s IP address and port number (i.e., assigns a remote protocol address to a socket) using connect(): 
+
+	int connect (int sfd, SA *NAME, size of NAME);
+
+	sfd is a socket descriptor obtained by calling socket()
+	NAME stores server’s IP address and port #
+	On error, return ’-1’ and set errno
+
+bind():
+Specifying a Local Address. A server program specifies its port number and IP address (i.e., assigns a local protocol address to a socket) using bind(). 
+
+write() and read() are also mainly used in recieving and sending message for TCP; To recieve the message (i.e. multiplex I/O), use poll() or select()
+
+
+Caveat: With pipes, FIFOs, TCP sockets 
+a read operation may return less than asked for, and a write operation can also return less than we specified. TCP may choose to break a block of data into pieces and transmit each piece in a separate segment.
+
+
+Basic design requirement for solving critical section problems 
+pre-assumption:
+	protection is granted for local variables only
+	no assumption about te relative speed of processes.
+	nothing can interrupt basic memory cycles
+	memory interlock property: memory is not interrupted during a single write (read) cycle.
+
+A critical section is a code segment that uses a shared variable. A race condition arises when the outcome depends on the speed of processes; the computation becomes time critical. (also known as synchronization problem.)
+
+Solution:
+For providing a mechanism to guarantee mutually exclusive access to critical sections.
+
+Possible solution 1: mutexBegin(...) allows one process each time, other must to wait; mutexEnd(...) wakes up any waiting processes to enter the critical section.
+
+
+General guideline for good solutions:
+1) Must guarantee mutual exclusion; 2) achieve good concurrency: if a critical section is
+available, any ready process can gain access to it. 3) achieve fair waiting among processes; 4) avoid deadlocks
+
+
+Algorithmic solutions (nothing can save a dump algorithm)
+Dekker’s Algorithm: wait until it is my turn
+Peterson’s Algorithm: wait until other is not trying 
+Both Dekker’s and Peterson’s Algorithms can be generalized to N processes, but N must be known a priori, and the algorithms become complicated.
+
+Bakery Algorithm (Solves the problem for N processes, with a limit on the waiting time before entering the critical)
+
+
+Hardware Based Solutions:
+Interrupt Elevation: processes give up the CPU either voluntary by sleep; or involuntary (e.g. set up a timer for a single process)
+raising the interrupt level can be used to avoid context switching during a critical section. This method is simple, and scales to n processes, but uses privileged instructions.
+
+Atomic Read-Modify-Write Instructions (e.g.compare-and-swap (IBM 370); exchange (x86); test-and-set from motorola 68k; etc.): uses a special read-modify-write bus cycle. TAS (test-and-set from motorola 68k) solves the critical section problem for any number of processes 
+
+
+Synchronization Primitives: A primitive is a simple programming feature that can
+be used without knowing the exact implementation. Typical synchronization primitives: semaphores [Dijkstra 65], critical regions [Hoare 72], lock/unlock, monitors [Hoare 7x, Hansen 7x], etc.
+	Semaphores: 
+	Monitors: Monitors encapsulate: shared data , initialization code, entry procedures , and condition variables. Rule: At most one process inside the monitor; Monitors provide a block/wakeup facility as follows: wait for condition variable by executing wait() and waking up a waiting process by executing signal()
+
+
+
+Deadlock:
+A deadlock happens when two (or more) processes waiting indefinitely for an event that will never occur.
+A preemptable resource can be taken away and returned back with no ill effect.
+A non-preemptable resource can’t be taken away unless it is released voluntarily (e.g., a tape drive, a file opened for write)
+
+Necessary Conditions for Deadlocks:
+1. Mutual Exclusion: at least one resource is held in a nonsharable mode.
+2. No preemption: each resource in the deadlock can’t be preempted (i.e., taken away without being voluntarily released).
+3. Hold an wait: At least one process holds at least one resource and is waiting to acquire additional resources held by other processes.
+4. Circular wait
+
+Strategies for handling deadlocks:
+Ignore: (e.g., Windows and Unix)
+
+Prevent: (using military-style policies: e.g., limit access, impose restrictions, restrain requests, enforce resource priority, etc.)
+	To prevent, we try to disallow any of the following conditions.
+	(note: we can't disallow mutual exclusion)
+
+	Preemption: If a requested resource cannot be granted immediately, then force the process to release all currently held resources. Later, the process should request them again
+	(but this protocol assumes that resources can be released (at any arbitrary point of time).); which means that non-preemptable resource can't be released 
+
+	Hold and Wait: Impose the following regime: That is, a process files a single request to acquire a set of resources. It should then release all of them before filing another request
+	Circular Wait: Impose a total ordering of all resource types: e.g., f (tape drive) = 1, f (disk drive) = 5, f (printer) = 12, etc. Require that each process requests resources in an increasing order of enumeration.
+
+
+
+
+Avoid: (be flexible but proceed cautiously) 
+	Bankers Algorithm [Habermann ’69]: Each resource type has one or more instances/units.
+
+Detect and Recover
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

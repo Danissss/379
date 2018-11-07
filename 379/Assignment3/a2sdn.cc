@@ -1,0 +1,609 @@
+// C++
+#include <iostream>
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <cstdlib>
+// C
+#include <sys/socket.h> 
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/select.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <stdarg.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <netinet/in.h> 
+
+using namespace std; 
+  
+// macro definition 
+#define MAX_SWITCH 7
+#define PRI 4
+#define S_LOW 0
+#define S_HIGH 1000
+
+#define MAXLINE     132
+#define MAX_NTOKEN  MAXLINE
+#define MAXWORD     32
+
+typedef enum {ADD, QUERY, OPEN, ACK } KIND;	  // Message kinds
+typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch_no[5]; } MSG;
+
+
+// fifo declare
+int fifo_1_0;
+// fifo declare as array:
+int *fifo;
+
+//function declartion
+char* RemoveDigits(char* input);
+void controller(int n_swithes, int portNumber);
+void switches(char **arg, const string &input, char *serverAddress, int portNumber);
+MSG composeMSTR (const string &a,  int port1,  int port2, char *port3, char *kind);
+void sendFrame (int fd, MSG *msg);
+string rcvFrame (int fd);
+int split(char inStr[],  char token[][MAXWORD], char fs[]);
+char * format_swi(const string &a);
+void set_cpu_time();
+string convert_int_to_string(int input);
+void error(const char *msg);
+
+
+void controller(int n_swithes, int portNumber){
+
+
+	int OPEN = 0;
+	int ACK  = 0;
+	int QUERY= 0;
+	int ADD  = 0;
+	// vector<string> switches(7);
+	char switches[n_swithes][50];
+
+
+
+	// variable for select()
+	// Ref: Youtube channels (keyword: select toturial)
+	int fd;
+	char buf[11];
+	int ret, sret;
+	fd = 0;
+	fd_set readfds;
+	// variable for select()
+
+	MSG    msg;
+	string rvc_msg;
+
+	char kind[10] = "OPEN";
+	string ab_string = "null";
+	char ab_char[5] = "null";
+	msg = composeMSTR(ab_string,0,0,ab_char,kind);
+
+
+
+
+	for(int i = 0; i < n_swithes; i++){
+		rvc_msg = rcvFrame(fifo_1_0);
+		cout << "before send msg controller" << endl;
+		int fifo_nm = fifo[i];
+		cout << fifo_nm << endl;
+		sendFrame(fifo_nm, &msg);
+		cout << "after send msg controller" << endl;
+		// cout << "recieved msg from switches: " << rvc_msg << endl;
+		char *switch_1 = format_swi(rvc_msg);
+		strcpy(switches[i],switch_1);
+		OPEN = OPEN+1;
+		ACK = ACK+1;
+
+	}
+
+
+
+    string OPEN_s = convert_int_to_string(OPEN);
+	string ACK_s = convert_int_to_string(ACK);
+	string QUERY_s = convert_int_to_string(QUERY);
+	string ADD_s = convert_int_to_string(ADD);
+	string general_info_1 = "Packet Stats:\n \t Recived:  OPEN:"+ OPEN_s +" QUERY:" +QUERY_s+"\n";
+	string general_info_2 = "\t Transmitted:  ACK:"+ACK_s+" ADD:"+ADD_s;
+	string general_info = general_info_1 + general_info_2;
+
+
+
+
+	while(1){
+		
+
+
+		///////////////////////////////////
+		FD_ZERO(&readfds);
+		FD_SET(fd,&readfds);
+		select(8,&readfds,NULL,NULL,NULL);
+		memset((void *) buf, 0, 11);
+		ret = read(fd, (void*)buf, 10);
+		/////////////////////////////////////
+
+		// string s; s.push_back(buf); 
+
+		if(ret != -1){
+			// cout << strcmp(buf,"list") << endl;
+
+			if(strcmp(buf,"list")==10){
+				for(int i=0; i<n_swithes; i++){
+					if (switches[i] != NULL){
+						cout << switches[i] << endl;
+					}
+					else{
+						break;
+					}
+					
+				}
+				cout << general_info << endl;
+
+			}
+			else if (strcmp(buf,"exit")==10){
+				break;
+			}
+			else{
+				cout << "unknown command! [list/exit]" << endl;
+			}
+		}
+	}
+
+
+
+}
+
+
+
+
+void switches(char **arg, const string &input, char *serverAddress, int portNumber){
+	
+	int    port1;
+	int    port2;
+	char  *port3;
+	port3= new char[20]; // allocate memory for pointer *port3;
+	int dest_ip_low;
+	int dest_ip_high;
+
+	int DELIVER  = 0;
+	int pri      = PRI;
+	int pkgCount = 0;
+
+	int ADMIT    = 0;
+	int OPEN     = 0;
+	int ACK      = 0;
+	int QUERY    = 0;
+	int ADDRULE  = 0;
+	int RELAYOUT = 0;
+	int RELAYIN  = 0;
+
+	int num_of_rules = 0;
+
+	//determine the fifo number
+	int fifo_n;
+	char const * tmp_input = input.c_str();
+	
+	sscanf(tmp_input, "sw%d", &fifo_n);
+	//cout << tmp_input << " and " << fifo_n << endl;
+	
+	int fifo_number = fifo[fifo_n-1];
+	
+	cout << fifo_number << endl;
+	
+	// cout << arg[1] << endl; // sw
+	// cout << arg[2] << endl; // file name
+	// cout << arg[3] << endl; // port 1
+	// cout << arg[4] << endl; // port 2
+	// cout << arg[5] << endl; // port 3 100-110
+	
+
+	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
+	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[4], "sw%d", &n);port2 = n;}
+	
+	strcpy(port3,"100-110");
+	int DEST_PORT_LOW, DEST_PORT_HIGH;
+	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
+	// cout << SCR_PORT << endl;
+	//parse String
+	ifstream myfile;
+	string STRING;
+	myfile.open(arg[2]);
+	
+	while(!myfile.eof()) // To get you all the lines.
+	{
+        getline(myfile,STRING); // Saves the line in STRING.
+        int src_port, dest_port;
+        if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
+			// split string here:
+			char delimiter[1];
+			strcpy(delimiter," ");
+			char * tab2 = new char [STRING.length()+1];
+			strcpy (tab2, STRING.c_str());
+			char splited_str[MAXLINE][MAXWORD];
+			split(tab2,splited_str,delimiter);
+			// cout << splited_str[0] << endl;
+			// cout << splited_str[1] << endl;
+			// cout << splited_str[2] << endl;
+			string first_arg(splited_str[0]);
+			// cout << first_arg << "and " << input<< endl;
+        	if(first_arg.compare(input)==0){
+
+        		string src_port_s = STRING.substr(5,5);
+        		string dest_port_s = STRING.substr(10,10);
+        		src_port  = atoi(src_port_s.c_str());
+        		dest_port = atoi(dest_port_s.c_str());
+				// cout << src_port << ":" << dest_port << endl;
+        		if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
+        			ADMIT++;
+        			DELIVER++;
+        			pkgCount++;
+					// cout << "destination port: " << dest_port << endl;
+        		}else{
+					// cout << "destination port (else): " << dest_port << endl;
+        			DELIVER++;
+        			ADDRULE++;
+        			QUERY++;
+        		}
+        	}
+        }
+
+    }
+	
+	myfile.close();
+
+	// exit(0);
+	// variable for select()
+	int fd;
+	char buf[11];
+	int ret, sret;
+	fd = 0;
+	fd_set readfds;
+	// variable for select()
+
+
+
+	MSG send_msg;
+	char kind[10] = "ACK";
+	string rvc_msg;
+	// send msg to controller;
+	// cout << fifo_number << endl;	
+	send_msg = composeMSTR(input,port1,port2,port3,kind);
+
+	sendFrame(fifo_1_0,&send_msg);
+	cout << "before get msg switches" << endl;
+	rvc_msg = rcvFrame(fifo_number); 
+	cout << "recived from controller: " << rvc_msg << endl;
+	OPEN++;
+	ACK++;
+
+
+	// prepare the print for list command 
+	// string srcIP = "0-1000";
+	// predefine num_of_rules as 1
+	string str(port3);
+	num_of_rules = 1;
+	string list_command[num_of_rules];
+	// switch information
+	for (int i=0; i< num_of_rules; i++){
+		string i_s = convert_int_to_string(i);
+		string pkgCount_s = convert_int_to_string(pkgCount);
+		string DELIVER_s  = convert_int_to_string(DELIVER);
+		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
+		list_command[i] = single_command;
+	}
+
+	// general information (total)
+	string ADMIT_s    = convert_int_to_string(ADMIT);
+	string ACK_s      = convert_int_to_string(ACK);
+	string ADDRULE_s  = convert_int_to_string(ADDRULE);
+	string RELAYIN_s  = convert_int_to_string(RELAYIN);
+	string OPEN_s     = convert_int_to_string(OPEN);
+	string QUERY_s    = convert_int_to_string(QUERY);
+	string RELAYOUT_s = convert_int_to_string(RELAYOUT);
+	string general_info_1 = "Packet Stats: \n \t Recived: ADMIT:" + ADMIT_s + ", ACK: " + ACK_s + ", ADDRULE: " + ADDRULE_s + ", RELAYIN: "+ RELAYIN_s +"\n";
+	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
+	string general_info = general_info_1 + general_info_2;
+
+	while(1){
+
+
+		/////////////////////////////////////
+		FD_ZERO(&readfds);
+		FD_SET(fd,&readfds);
+		select(8,&readfds,NULL,NULL,NULL);
+		memset((void *) buf, 0, 11);
+		ret = read(fd, (void*)buf, 10);
+		/////////////////////////////////////
+		// select will minitor file descriptor 1024 (poll doesn't have this limitation)
+		// stdin 0; stdout 1; stderr 2; incrementing with open
+		// poll() or select() detail for read msg
+
+
+		if(ret != -1){
+
+			if(strcmp(buf,"list")==10){
+				for(int i=0; i<num_of_rules; i++){
+					cout << list_command[i] << endl;
+				}
+				cout << general_info << endl;
+
+			}
+			else if (strcmp(buf,"exit")==10){
+				break;
+			}
+			else{
+				cout << "unknown command! [list/exit]" << endl;
+			}
+		}
+	}
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+// Ref: https://stackoverflow.com/questions/28353173/trying-to-remove-all-numbers-from-a-string-in-c
+char* RemoveDigits(char* input)
+{
+    char* dest = input;
+    char* src = input;
+
+    while(*src)
+    {
+        if (isdigit(*src)) { src++; continue; }
+        *dest++ = *src++;
+    }
+    *dest = '\0';
+    return input;
+}
+
+// Ref: eclass
+MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3, char *kind )
+{
+    MSG  msg;
+
+    memset( (char *) &msg, 0, sizeof(msg) );
+   
+    msg.port1 = port1;
+    msg.port2 = port2;
+    strcpy(msg.port3,port3);
+    strcpy(msg.kind,kind);
+   
+    strncpy(msg.switch_no,a.c_str(),sizeof(msg.switch_no)); // port1 value changed at this point;
+    return msg;
+} 
+
+
+// recive the msg struct, but send the string object;
+void sendFrame (int fd, MSG *msg)
+{
+
+	char *MESSAGE_P = (char *) malloc(8192);
+
+	
+	string port1 = convert_int_to_string(msg->port1);
+	string port2 = convert_int_to_string(msg->port2);
+	string port3 = msg->port3;
+	string s_no  = msg->switch_no;
+	string kind  = msg->kind;
+
+	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
+	char const * MESSAGE_P_P = MESSAGE.c_str();
+	// cout << "sending msg: " << MESSAGE_P << endl;
+	// cout << MESSAGE_P << endl;
+	write (fd, MESSAGE_P_P, 8192); // write the message_p into fifo file with constraint 8192
+
+}
+
+       
+string rcvFrame (int fd)
+{ 
+	int len; 
+	char * MESSAGE_P = (char *) malloc(8192);
+
+    len = read (fd, MESSAGE_P, 8192);
+
+
+    string str(MESSAGE_P);
+
+    return MESSAGE_P;	  
+}
+
+
+int split(char inStr[],  char token[][MAXWORD], char fs[])
+{
+    int    i, count;
+    char   *tokenp, inStrCopy[MAXLINE];
+	// cout << "print from split" << inStr << endl; // this prints nothing
+    count= 0;
+    memset (inStrCopy, 0, sizeof(inStrCopy));
+
+    for (i=0; i < MAX_NTOKEN; i++) memset (token[i], 0, sizeof(token[i]));
+
+    strcpy (inStrCopy, inStr);
+    if ( (tokenp= strtok(inStr, fs)) == NULL) return(0);
+
+    strcpy(token[count],tokenp); count++;
+
+    while ( (tokenp= strtok(NULL, fs)) != NULL) {
+        strcpy(token[count],tokenp); count++;
+    }
+    strcpy (inStr, inStrCopy);
+    return(count);
+}
+
+
+char * format_swi(const string &a){
+	// char const * msg = a.c_str();
+	char strings[100];
+	char delimiter[1];
+	strcpy(delimiter,";");
+	//////////////////////////////////
+	char * tab2 = new char [a.length()+1];
+	strcpy (tab2, a.c_str());
+	char splited_str[MAXLINE][MAXWORD];
+	// int** splited_str = new int*[MAXWORD];
+	// char string_ing[100] = "-1;-1;100-110;sw1;ACK"; // this will pass successfully
+	split(tab2,splited_str,delimiter);
+
+	// cout << splited_str[0] << endl;
+	// cout << splited_str[1] << endl;
+	// cout << splited_str[2] << endl;
+	// cout << splited_str[3] << endl;
+	// cout << splited_str[4] << endl;
+	char *MESSAGE_P = (char *) malloc(8192);
+	string switch_no(splited_str[3]);
+	string port1(splited_str[0]);
+	string port2(splited_str[1]);
+	string port3(splited_str[2]);
+	string message = "["+ switch_no +"] port1= " +port1+ ", port2= " +port2+", port3= "+port3+"\n";
+ 	// cout << message << endl;
+ 	char const *cstr = message.c_str();
+ 	strcpy(MESSAGE_P,cstr);
+	return MESSAGE_P;
+}
+
+string convert_int_to_string(int input){
+	stringstream ss;
+    ss << input;
+    string s=ss.str();
+	return s;
+}
+
+void set_cpu_time(){
+	struct rlimit limit;
+	getrlimit(RLIMIT_CPU,&limit);
+	limit.rlim_cur = 60*100;
+	setrlimit(RLIMIT_CPU,&limit);
+}
+
+// ref: http://www.linuxhowtos.org/C_C++/socket.htm
+void error(const char *msg)
+{
+    perror(msg);
+    exit(0);
+}
+
+
+
+
+
+int main(int argc, char** argv) 
+{ 
+	//
+	if (argc < 4){ cout << "Too little arguments " << endl; return 0;}
+	if (argc > 8){ cout << "Too many arguments "   << endl; return 0;}
+
+	string argv_1_rep = "";
+	argv_1_rep = argv[1]; 
+	char *argv_1 = RemoveDigits(argv[1]);
+
+
+	
+	string fifo_name = "fifo_1_";
+	fifo = new int[7];
+        for (int i = 0; i<7; i++){
+		int tmp_i = i;
+		tmp_i++;
+		string num = convert_int_to_string(tmp_i);
+		string fifo_name_ = fifo_name + num;
+		char const * fifo_name_char = fifo_name_.c_str();
+		if ((fifo[i] = open(fifo_name_char,O_RDWR))< 0){
+			cout << "NO" << fifo_name_char << "EXIST!" << endl;
+			return 0;
+		}
+	
+	}
+	// work with correct input value first 
+	// controller argument check miss check the validity of portNumber 
+	// switches argument check miss check the validity of portNumber and serverAddress
+	if (strcmp(argv_1,"cont") == 0){
+		if (argc != 4){ cout << "Incorrected argument (e.g. a3sdn cont nSwitch portNumber)!" << endl; return 0; }
+		// if (argc < 3){ cout << "Identify number of switches and the portNumber" << endl; return 0; }
+		
+		int n_swithes = atoi(argv[2]);
+		if (n_swithes > MAX_SWITCH){
+			cout << "Too many switches (MAX: 7)!" << endl;
+			return 0;
+		}
+		int portNumber = atoi(argv[3]);
+
+			
+		set_cpu_time();
+		controller(n_swithes,portNumber);
+	}
+	
+	else if(strcmp(argv_1, "sw") == 0){
+		if(argc != 8){
+			cout << "Required 8 arguments (e.g. a3sdn swi trafficFile (null|swj) (null|swk) IPlow-IPhigh serverAddress portNumber)!" << endl;
+			return 0;
+		}
+		// try to open the dat.file
+		char * serverAddress = new char [20];
+		strcpy(serverAddress,argv[6]);
+		int portNumber = atoi(argv[7]);
+
+		set_cpu_time();
+		switches(argv,argv_1_rep,serverAddress,portNumber);
+
+	}
+	else{
+
+		cout << "Invalid Command!" << endl;
+		return 0;
+	}
+
+    // cout <<"this line" << endl;
+
+
+  
+    return 0; 
+} 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
