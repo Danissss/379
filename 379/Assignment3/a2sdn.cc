@@ -55,6 +55,13 @@ string convert_int_to_string(int input);
 void error(const char *msg);
 
 
+
+
+
+// no need to use fifo;
+// implment socket with number of switch and portNumber (address is system address: 127.0.0.1)
+// binding to socket and start to accept connection; 
+// in select(), listen the multiple incoming msg;
 void controller(int n_swithes, int portNumber){
 
 
@@ -160,7 +167,10 @@ void controller(int n_swithes, int portNumber){
 
 
 
-
+// use fifo to send query to nearby switches
+// use socket to establish connection with controllers 
+// implement delay
+// when the switch is down, the connection lost signal needs to be sent to controller 
 void switches(char **arg, const string &input, char *serverAddress, int portNumber){
 	
 	int    port1;
