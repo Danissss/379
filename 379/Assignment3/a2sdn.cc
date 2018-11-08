@@ -18,7 +18,8 @@
 #include <stdarg.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <netinet/in.h> 
+#include <netinet/in.h>
+#include <poll.h>
 
 using namespace std; 
   
@@ -40,6 +41,7 @@ typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch
 int fifo_1_0;
 // fifo declare as array:
 int *fifo;
+
 
 //function declartion
 char* RemoveDigits(char* input);
@@ -64,12 +66,27 @@ void error(const char *msg);
 // in select(), listen the multiple incoming msg;
 void controller(int n_swithes, int portNumber){
 
+	// socket setup
+	int sockfd, newsockfd;							 // socket (file decriptor) declaration:
+	socklen_t clilen; 								 // length of bytes for store address
+	char *buffer = new char[256];		
+    struct sockaddr_in serv_addr, cli_addr;		     // define two scokaddr_in (struct) serv_addr and cli_addr; 
+    sockfd = socket(AF_INET, SOCK_STREAM, 0); 		 // define socket
+    												 // error checking 
+    if (sockfd < 0) { error("ERROR opening socket");} 
+    serv_addr.sin_family = AF_INET;					 // set the server family as IPv4
+    serv_addr.sin_addr.s_addr = INADDR_ANY;			 // receive msg from everywhere
+    serv_addr.sin_port = htons(portNumber);		     // define the port number 
+    if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {error("ERROR on binding");}
+    listen(sockfd,n_swithes);						 // start to listen incoming connection
+
+
+
 
 	int OPEN = 0;
 	int ACK  = 0;
 	int QUERY= 0;
 	int ADD  = 0;
-	// vector<string> switches(7);
 	char switches[n_swithes][50];
 
 
@@ -122,43 +139,97 @@ void controller(int n_swithes, int portNumber){
 
 
 
+	// poll setup
+	struct pollfd polls[n_swithes];
+	int    timeout;
+	int    current_msg = 0;
+	timeout = (3 * 60 * 1000);			// set timeout for 3 mins
+	int rc_msg;
+
 	while(1){
 		
 
+		// poll setup
+		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
+		// should we wait forever or don't wait?
+		// poll(polls, n_swithes, timeout);
+		// poll(polls, n_swithes, -1);
 
-		///////////////////////////////////
-		FD_ZERO(&readfds);
-		FD_SET(fd,&readfds);
-		select(8,&readfds,NULL,NULL,NULL);
-		memset((void *) buf, 0, 11);
-		ret = read(fd, (void*)buf, 10);
-		/////////////////////////////////////
+		rc_msg = poll(polls, n_swithes, -1);
+		if (rc_msg < 0) {error("poll() failed...\n");}
+		if (rc_msg == 0){cout<<"poll() timeout..."<<endl; break;}
 
-		// string s; s.push_back(buf); 
+		// should I start to listen right away like this?
+		// https://linux.die.net/man/3/poll
+		// struct pollfd {
+  //    		int    fd;       /* file descriptor to check, or <0 to ignore */
+  //    		short  events;   /* events of interest on fd */
+  //    		short  revents;  /* events that occurred on fd */
+		// };
+		// polls[0].fd = 
 
-		if(ret != -1){
-			// cout << strcmp(buf,"list") << endl;
+		current_msg = n_swithes;
+		// Loop through the descriptors for POLLIN and determine whether
+		// it is the listening or active connection
 
-			if(strcmp(buf,"list")==10){
-				for(int i=0; i<n_swithes; i++){
-					if (switches[i] != NULL){
-						cout << switches[i] << endl;
-					}
-					else{
-						break;
-					}
-					
-				}
-				cout << general_info << endl;
-
+		for (int i = 0; i< current_msg;i++){
+			// stdin?
+			if(polls[i].events == 0){
+        		continue;
 			}
-			else if (strcmp(buf,"exit")==10){
+			if(polls[i].events != POLLIN){
+				cout << "Error revents: " << polls[i].revents << endl;
 				break;
+				// break;
 			}
-			else{
-				cout << "unknown command! [list/exit]" << endl;
+
+			if(polls[i].events == sockfd){
+				// socket portion
+				clilen = sizeof(cli_addr);
+				// store msg in clilen
+				newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
+				if (newsockfd < 0){
+					error("accept() failed! ");
+				}
 			}
 		}
+
+		
+
+
+		// ///////////////////////////////////
+		// FD_ZERO(&readfds);
+		// FD_SET(fd,&readfds);
+		// select(8,&readfds,NULL,NULL,NULL);
+		// memset((void *) buf, 0, 11);
+		// ret = read(fd, (void*)buf, 10);
+		// /////////////////////////////////////
+
+		// // string s; s.push_back(buf); 
+
+		// if(ret != -1){
+		// 	// cout << strcmp(buf,"list") << endl;
+
+		// 	if(strcmp(buf,"list")==10){
+		// 		for(int i=0; i<n_swithes; i++){
+		// 			if (switches[i] != NULL){
+		// 				cout << switches[i] << endl;
+		// 			}
+		// 			else{
+		// 				break;
+		// 			}
+					
+		// 		}
+		// 		cout << general_info << endl;
+
+		// 	}
+		// 	else if (strcmp(buf,"exit")==10){
+		// 		break;
+		// 	}
+		// 	else{
+		// 		cout << "unknown command! [list/exit]" << endl;
+		// 	}
+		// }
 	}
 
 
