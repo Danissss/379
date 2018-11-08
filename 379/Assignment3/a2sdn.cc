@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <netdb.h> 
 #include <poll.h>
 
 using namespace std; 
@@ -140,7 +141,7 @@ void controller(int n_swithes, int portNumber){
 
 
 	// poll setup
-	struct pollfd polls[n_swithes];
+	struct pollfd polls[n_swithes+1];
 	int    timeout;
 	int    current_msg = 0;
 	timeout = (3 * 60 * 1000);			// set timeout for 3 mins
@@ -155,7 +156,7 @@ void controller(int n_swithes, int portNumber){
 		// poll(polls, n_swithes, timeout);
 		// poll(polls, n_swithes, -1);
 
-		rc_msg = poll(polls, n_swithes, -1);
+		rc_msg = poll(polls, n_swithes, 0);
 		if (rc_msg < 0) {error("poll() failed...\n");}
 		if (rc_msg == 0){cout<<"poll() timeout..."<<endl; break;}
 
@@ -171,6 +172,9 @@ void controller(int n_swithes, int portNumber){
 		current_msg = n_swithes;
 		// Loop through the descriptors for POLLIN and determine whether
 		// it is the listening or active connection
+		// stdin = 0
+		// stdout = 1
+		// stderr = 2
 
 		for (int i = 0; i< current_msg;i++){
 			// stdin?
@@ -183,6 +187,7 @@ void controller(int n_swithes, int portNumber){
 				// break;
 			}
 
+			// if polls[i].events is socket file descriptor: means there is msg from msg
 			if(polls[i].events == sockfd){
 				// socket portion
 				clilen = sizeof(cli_addr);
@@ -244,6 +249,50 @@ void controller(int n_swithes, int portNumber){
 // when the switch is down, the connection lost signal needs to be sent to controller 
 void switches(char **arg, const string &input, char *serverAddress, int portNumber){
 	
+	int sockfd,n;
+	struct sockaddr_in server_obj;
+	struct hostent *server;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
+	if (sockfd < 0) { error("ERROR opening socket"); }
+	server = gethostbyname(serverAddress);
+	// struct hostent {
+    //     char   *h_name;
+    //     char  **h_aliases;
+    //     int     h_addrtype;
+    //     int     h_length;
+    //     char  **h_addr_list; 
+    // }
+	if (server == NULL) { 
+		cout << "Can't read the server address! " << endl;		// error check the server
+        exit(0);
+    }
+
+	bzero((char *) &server_obj, sizeof(server_obj));
+	server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
+	bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
+	server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
+
+	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) 
+	{ 
+		error("ERROR connecting");
+	}else{
+		cout << "Succesfully connect to server!... " << endl;
+	}
+
+	char *buffer = new char[256];   // set all buffer byte to zero; initialize buffer 
+    // fgets(buffer,255,stdin); // get user input 
+
+
+	// should write to server in specific conditions and read from server aswellas other switches in while loop
+    // n = write(sockfd,buffer,strlen(buffer)); // write to the socket sockfd and send 
+	// if (n < 0) { error("ERROR writing to socket");}
+
+	// n = read(sockfd,buffer,255);  // read back from socket sockfd 
+	// if (n < 0) { error("ERROR reading from socket") ;}
+
+
+
+
 	int    port1;
 	int    port2;
 	char  *port3;
@@ -390,38 +439,88 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
 	string general_info = general_info_1 + general_info_2;
 
+
+	// poll setup
+	// what will be the size of polls?
+	struct pollfd polls[2];
+	int    timeout;
+	int    current_msg = 0;
+	timeout = (10 * 1000);			// set timeout for 10 seconds
+	int rc_msg;
+
 	while(1){
 
+		rc_msg = poll(polls, 2, timeout);
+		if (rc_msg < 0) {error("poll() failed...\n");}
+		if (rc_msg == 0){cout<<"poll() timeout..."<<endl; break;}
+		// https://linux.die.net/man/3/poll
+		// struct pollfd {
+  //    		int    fd;       /* file descriptor to check, or <0 to ignore */
+  //    		short  events;   /* events of interest on fd */
+  //    		short  revents;  /* events that occurred on fd */
+		// };
 
-		/////////////////////////////////////
-		FD_ZERO(&readfds);
-		FD_SET(fd,&readfds);
-		select(8,&readfds,NULL,NULL,NULL);
-		memset((void *) buf, 0, 11);
-		ret = read(fd, (void*)buf, 10);
-		/////////////////////////////////////
-		// select will minitor file descriptor 1024 (poll doesn't have this limitation)
-		// stdin 0; stdout 1; stderr 2; incrementing with open
-		// poll() or select() detail for read msg
+		current_msg = 2;
+		// Loop through the descriptors for POLLIN and determine whether
+		// it is the listening or active connection
 
-
-		if(ret != -1){
-
-			if(strcmp(buf,"list")==10){
-				for(int i=0; i<num_of_rules; i++){
-					cout << list_command[i] << endl;
-				}
-				cout << general_info << endl;
-
+		for (int i = 0; i< current_msg;i++){
+			// stdin?
+			if(polls[i].events == 0){
+        		continue;
 			}
-			else if (strcmp(buf,"exit")==10){
+			if(polls[i].events != POLLIN){
+				cout << "Error revents: " << polls[i].revents << endl;
 				break;
+				// break;
 			}
-			else{
-				cout << "unknown command! [list/exit]" << endl;
+
+			
+			if(polls[i].events == sockfd){
+				// socket portion
+				char *buffer = new char[255];
+				n = read(sockfd,buffer,255);  // read back from socket sockfd 
+				// clilen = sizeof(cli_addr);
+				// // store msg in clilen
+				// newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
+				// if (newsockfd < 0){
+				// 	error("accept() failed! ");
+				// }
 			}
 		}
 	}
+	// while(1){
+
+
+	// 	/////////////////////////////////////
+	// 	FD_ZERO(&readfds);
+	// 	FD_SET(fd,&readfds);
+	// 	select(8,&readfds,NULL,NULL,NULL);
+	// 	memset((void *) buf, 0, 11);
+	// 	ret = read(fd, (void*)buf, 10);
+	// 	/////////////////////////////////////
+	// 	// select will minitor file descriptor 1024 (poll doesn't have this limitation)
+	// 	// stdin 0; stdout 1; stderr 2; incrementing with open
+	// 	// poll() or select() detail for read msg
+
+
+	// 	if(ret != -1){
+
+	// 		if(strcmp(buf,"list")==10){
+	// 			for(int i=0; i<num_of_rules; i++){
+	// 				cout << list_command[i] << endl;
+	// 			}
+	// 			cout << general_info << endl;
+
+	// 		}
+	// 		else if (strcmp(buf,"exit")==10){
+	// 			break;
+	// 		}
+	// 		else{
+	// 			cout << "unknown command! [list/exit]" << endl;
+	// 		}
+	// 	}
+	// }
 
 
 }

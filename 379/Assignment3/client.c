@@ -66,9 +66,7 @@ int main(int argc, char *argv[])
     serv_addr.sin_family = AF_INET; //define sin_family as AF_INET/IPv4
 
 
-    bcopy((char *)server->h_addr, 
-        (char *)&serv_addr.sin_addr.s_addr, 
-        server->h_length);         // copy the ip address to struct in_addr sin_addr in serv_addr;
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);         // copy the ip address to struct in_addr sin_addr in serv_addr;
 
 
     serv_addr.sin_port = htons(portno); // define sin_port by given port use function htons()
