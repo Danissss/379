@@ -1,3 +1,9 @@
+// example command:
+// with one switches
+// ./a2sdn cont 1 8080
+// ./a2sdn sw1 t2.dat null null 100-110 127.0.0.1 8080
+
+
 // C++
 #include <iostream>
 #include <sstream>
@@ -94,38 +100,38 @@ void controller(int n_swithes, int portNumber){
 
 	// variable for select()
 	// Ref: Youtube channels (keyword: select toturial)
-	int fd;
-	char buf[11];
-	int ret, sret;
-	fd = 0;
-	fd_set readfds;
-	// variable for select()
+	// int fd;
+	// char buf[11];
+	// int ret, sret;
+	// fd = 0;
+	// fd_set readfds;
+	// // variable for select()
 
-	MSG    msg;
-	string rvc_msg;
+	// MSG    msg;
+	// string rvc_msg;
 
-	char kind[10] = "OPEN";
-	string ab_string = "null";
-	char ab_char[5] = "null";
-	msg = composeMSTR(ab_string,0,0,ab_char,kind);
-
-
+	// char kind[10] = "OPEN";
+	// string ab_string = "null";
+	// char ab_char[5] = "null";
+	// msg = composeMSTR(ab_string,0,0,ab_char,kind);
 
 
-	for(int i = 0; i < n_swithes; i++){
-		rvc_msg = rcvFrame(fifo_1_0);
-		cout << "before send msg controller" << endl;
-		int fifo_nm = fifo[i];
-		cout << fifo_nm << endl;
-		sendFrame(fifo_nm, &msg);
-		cout << "after send msg controller" << endl;
-		// cout << "recieved msg from switches: " << rvc_msg << endl;
-		char *switch_1 = format_swi(rvc_msg);
-		strcpy(switches[i],switch_1);
-		OPEN = OPEN+1;
-		ACK = ACK+1;
 
-	}
+
+	// for(int i = 0; i < n_swithes; i++){
+	// 	rvc_msg = rcvFrame(fifo_1_0);
+	// 	cout << "before send msg controller" << endl;
+	// 	int fifo_nm = fifo[i];
+	// 	cout << fifo_nm << endl;
+	// 	sendFrame(fifo_nm, &msg);
+	// 	cout << "after send msg controller" << endl;
+	// 	// cout << "recieved msg from switches: " << rvc_msg << endl;
+	// 	char *switch_1 = format_swi(rvc_msg);
+	// 	strcpy(switches[i],switch_1);
+	// 	OPEN = OPEN+1;
+	// 	ACK = ACK+1;
+
+	// }
 
 
 
@@ -141,25 +147,58 @@ void controller(int n_swithes, int portNumber){
 
 
 	// poll setup
-	struct pollfd polls[n_swithes+1];
+	struct pollfd polls[7];
 	int    timeout;
 	int    current_msg = 0;
-	timeout = (3 * 60 * 1000);			// set timeout for 3 mins
+	timeout = (10* 1000);			// set timeout for 10 sec;
 	int rc_msg;
+	
+	polls[0].fd = 0;
+	polls[0].events = POLLIN;
+	polls[1].fd = sockfd;
+	polls[1].events = POLLIN;
+	// polls[2].fd = sockfd_2;
 
 	while(1){
 		
 
 		// poll setup
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
-		// should we wait forever or don't wait?
-		// poll(polls, n_swithes, timeout);
-		// poll(polls, n_swithes, -1);
 
-		rc_msg = poll(polls, n_swithes, 0);
-		if (rc_msg < 0) {error("poll() failed...\n");}
-		if (rc_msg == 0){cout<<"poll() timeout..."<<endl; break;}
+		rc_msg = poll(polls, 7, 0);
+		// if (rc_msg < 0) {error("poll() failed...\n");}
+		// if (rc_msg == 0){cout<<"poll() timeout..."<<endl;}
+		// if (rc_msg > 0 ) { cout<< "poll() msg" << endl;}
+		if (rc_msg < 0) {
+			error("poll() failed...\n");
+		}
+		else if (rc_msg == 0){
+			continue;
+		}
+		else{
 
+			for (int i = 0; i< current_msg; i++){
+				if( polls[i].revents & POLLIN ) {
+					cout << "revents: " << polls[i].fd << endl;
+					if (polls[i].fd == 0){
+						char *buffer = new char[10];
+						read(polls[i].fd,buffer,10);
+						cout << "stdin: " << buffer << endl;
+
+					}else if(polls[i].fd == sockfd){
+
+						cout  << "ACCEPTING CONNECTION ... " << endl;
+
+					}
+
+				}
+				else{
+					continue;
+				}
+				// end of for loop
+			}
+
+		}
 		// should I start to listen right away like this?
 		// https://linux.die.net/man/3/poll
 		// struct pollfd {
@@ -167,74 +206,6 @@ void controller(int n_swithes, int portNumber){
   //    		short  events;   /* events of interest on fd */
   //    		short  revents;  /* events that occurred on fd */
 		// };
-		// polls[0].fd = 
-
-		current_msg = n_swithes;
-		// Loop through the descriptors for POLLIN and determine whether
-		// it is the listening or active connection
-		// stdin = 0
-		// stdout = 1
-		// stderr = 2
-
-		for (int i = 0; i< current_msg;i++){
-			// stdin?
-			if(polls[i].events == 0){
-        		continue;
-			}
-			if(polls[i].events != POLLIN){
-				cout << "Error revents: " << polls[i].revents << endl;
-				break;
-				// break;
-			}
-
-			// if polls[i].events is socket file descriptor: means there is msg from msg
-			if(polls[i].events == sockfd){
-				// socket portion
-				clilen = sizeof(cli_addr);
-				// store msg in clilen
-				newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
-				if (newsockfd < 0){
-					error("accept() failed! ");
-				}
-			}
-		}
-
-		
-
-
-		// ///////////////////////////////////
-		// FD_ZERO(&readfds);
-		// FD_SET(fd,&readfds);
-		// select(8,&readfds,NULL,NULL,NULL);
-		// memset((void *) buf, 0, 11);
-		// ret = read(fd, (void*)buf, 10);
-		// /////////////////////////////////////
-
-		// // string s; s.push_back(buf); 
-
-		// if(ret != -1){
-		// 	// cout << strcmp(buf,"list") << endl;
-
-		// 	if(strcmp(buf,"list")==10){
-		// 		for(int i=0; i<n_swithes; i++){
-		// 			if (switches[i] != NULL){
-		// 				cout << switches[i] << endl;
-		// 			}
-		// 			else{
-		// 				break;
-		// 			}
-					
-		// 		}
-		// 		cout << general_info << endl;
-
-		// 	}
-		// 	else if (strcmp(buf,"exit")==10){
-		// 		break;
-		// 	}
-		// 	else{
-		// 		cout << "unknown command! [list/exit]" << endl;
-		// 	}
-		// }
 	}
 
 
@@ -292,7 +263,9 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 
 
-
+	// parse the packet file
+	// and follow the rules to prepare the msg send to controller;
+	// controller will either tell switch to drop the packet for send the packet to nearby switches
 	int    port1;
 	int    port2;
 	char  *port3;
@@ -307,8 +280,8 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int ADMIT    = 0;
 	int OPEN     = 0;
 	int ACK      = 0;
-	int QUERY    = 0;
-	int ADDRULE  = 0;
+	int QUERY    = 0;   // send to controller the query
+	int ADDRULE  = 0;   // 
 	int RELAYOUT = 0;
 	int RELAYIN  = 0;
 
@@ -442,6 +415,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 	// poll setup
 	// what will be the size of polls?
+
 	struct pollfd polls[2];
 	int    timeout;
 	int    current_msg = 0;
@@ -723,6 +697,7 @@ int main(int argc, char** argv)
 
 			
 		set_cpu_time();
+		cout << "num_of_switches: " << n_swithes << "; port number: " << portNumber << endl;
 		controller(n_swithes,portNumber);
 	}
 	

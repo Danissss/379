@@ -4,9 +4,9 @@
 #   a2sdn sw2 t2.dat sw1 null 200-210
 
 sw1  100  102
-sw1  100  200
-sw1  100  300 
-sw2  200  300 
+sw1  100  200 //query //not drop because sw2 have 200-210 iff sw2 present otherwise droped; send to sw2
+sw1  100  300 //query // drop
+sw2  200  300 //not even read 
 sw3  200  300
 sw1  delay 4000
 sw2  200  100

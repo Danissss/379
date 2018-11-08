@@ -6,9 +6,9 @@ compile:
 	# gcc -o a2sdn a2sdn.c
 	# g++ -o a2sdn a2sdn.cc
 	g++ -o a2sdn  a2sdn.cc
-	gcc -o client client.c
-	gcc -o server server.c
-	gcc -o poll_client poll_function_client.c
+	# gcc -o client client.c
+	# gcc -o server server.c
+	# gcc -o poll_client poll_function_client.c
 	gcc -o poll_server poll_funcion.c
 
 tar:

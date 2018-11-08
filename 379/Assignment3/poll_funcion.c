@@ -37,7 +37,7 @@ int main()
     int numfds = 0;
  
  
-    unlink(SOCKET_PATH);
+
     server_sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
  
  
