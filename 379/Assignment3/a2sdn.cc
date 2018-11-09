@@ -62,6 +62,7 @@ char * format_swi(const string &a);
 void set_cpu_time();
 string convert_int_to_string(int input);
 void error(const char *msg);
+void RemoveSpaces(char* source);
 
 
 
@@ -149,7 +150,7 @@ void controller(int n_swithes, int portNumber){
 	// poll setup
 	struct pollfd polls[7];
 	int    timeout;
-	int    current_msg = 0;
+	int    current_msg = 7;
 	timeout = (10* 1000);			// set timeout for 10 sec;
 	int rc_msg;
 	
@@ -173,23 +174,41 @@ void controller(int n_swithes, int portNumber){
 			error("poll() failed...\n");
 		}
 		else if (rc_msg == 0){
+			// cout <<"rc_msg:" << rc_msg << endl;
 			continue;
 		}
 		else{
-
+			// cout <<"rc_msg:" << rc_msg << endl; // entered after type something
 			for (int i = 0; i< current_msg; i++){
+		
 				if( polls[i].revents & POLLIN ) {
-					cout << "revents: " << polls[i].fd << endl;
+					// cout << "revents: " << polls[i].fd << endl;
 					if (polls[i].fd == 0){
 						char *buffer = new char[10];
 						read(polls[i].fd,buffer,10);
-						cout << "stdin: " << buffer << endl;
+						RemoveSpaces(buffer);
+						if (strcmp(buffer,"list")==10){							// why it is 10? 
+							cout << "list command" << endl;
+							// print all the crap ;)...
+
+						}
+						else if (strcmp(buffer,"exit") == 10){
+							exit(0);
+						}
+						else{
+							cout << "Wrong command!" << endl;
+						}
 
 					}else if(polls[i].fd == sockfd){
 
 						cout  << "ACCEPTING CONNECTION ... " << endl;
 
 					}
+
+
+
+
+
 
 				}
 				else{
@@ -199,6 +218,7 @@ void controller(int n_swithes, int portNumber){
 			}
 
 		}
+		
 		// should I start to listen right away like this?
 		// https://linux.die.net/man/3/poll
 		// struct pollfd {
@@ -413,90 +433,74 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	string general_info = general_info_1 + general_info_2;
 
 
-	// poll setup
-	// what will be the size of polls?
 
-	struct pollfd polls[2];
+	// poll setup
+	// maximum 4 fp: stdin, socket, fifo1, fifo2
+	struct pollfd polls[4];
 	int    timeout;
-	int    current_msg = 0;
-	timeout = (10 * 1000);			// set timeout for 10 seconds
+	int    current_msg = 4;
+	timeout = (10* 1000);			// set timeout for 10 sec;
 	int rc_msg;
+	
+	polls[0].fd = 0;
+	polls[0].events = POLLIN;
+	polls[1].fd = sockfd;
+	polls[1].events = POLLIN;
+	// polls[2].fd = sockfd_2;
 
 	while(1){
+		
 
-		rc_msg = poll(polls, 2, timeout);
-		if (rc_msg < 0) {error("poll() failed...\n");}
-		if (rc_msg == 0){cout<<"poll() timeout..."<<endl; break;}
-		// https://linux.die.net/man/3/poll
-		// struct pollfd {
-  //    		int    fd;       /* file descriptor to check, or <0 to ignore */
-  //    		short  events;   /* events of interest on fd */
-  //    		short  revents;  /* events that occurred on fd */
-		// };
+		// poll setup
+		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
 
-		current_msg = 2;
-		// Loop through the descriptors for POLLIN and determine whether
-		// it is the listening or active connection
+		rc_msg = poll(polls, 4, 0);
+		// if (rc_msg < 0) {error("poll() failed...\n");}
+		// if (rc_msg == 0){cout<<"poll() timeout..."<<endl;}
+		// if (rc_msg > 0 ) { cout<< "poll() msg" << endl;}
+		if (rc_msg < 0) {
+			error("poll() failed...\n");
+		}
+		else if (rc_msg == 0){
+			continue;
+		}
+		else{
 
-		for (int i = 0; i< current_msg;i++){
-			// stdin?
-			if(polls[i].events == 0){
-        		continue;
+			for (int i = 0; i< current_msg; i++){
+				if( polls[i].revents & POLLIN ) {
+					if (polls[i].fd == 0){
+						char *buffer = new char[10];
+						read(polls[i].fd,buffer,10);
+						cout << "stdin: " << buffer << endl;
+						RemoveSpaces(buffer);
+						if (strcmp(buffer,"list")==10){							// why it is 10? 
+							cout << "list command" << endl;
+							// print all the crap ;)...
+
+						}
+						else if (strcmp(buffer,"exit") == 10){
+							exit(0);
+						}
+						else{
+							cout << "Wrong command!" << endl;
+						}
+
+
+					}else if(polls[i].fd == sockfd){
+
+						cout  << "ACCEPTING CONNECTION ... " << endl;
+
+					}
+
+				}
+				else{
+					continue;
+				}
+				// end of for loop
 			}
-			if(polls[i].events != POLLIN){
-				cout << "Error revents: " << polls[i].revents << endl;
-				break;
-				// break;
-			}
 
-			
-			if(polls[i].events == sockfd){
-				// socket portion
-				char *buffer = new char[255];
-				n = read(sockfd,buffer,255);  // read back from socket sockfd 
-				// clilen = sizeof(cli_addr);
-				// // store msg in clilen
-				// newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
-				// if (newsockfd < 0){
-				// 	error("accept() failed! ");
-				// }
-			}
 		}
 	}
-	// while(1){
-
-
-	// 	/////////////////////////////////////
-	// 	FD_ZERO(&readfds);
-	// 	FD_SET(fd,&readfds);
-	// 	select(8,&readfds,NULL,NULL,NULL);
-	// 	memset((void *) buf, 0, 11);
-	// 	ret = read(fd, (void*)buf, 10);
-	// 	/////////////////////////////////////
-	// 	// select will minitor file descriptor 1024 (poll doesn't have this limitation)
-	// 	// stdin 0; stdout 1; stderr 2; incrementing with open
-	// 	// poll() or select() detail for read msg
-
-
-	// 	if(ret != -1){
-
-	// 		if(strcmp(buf,"list")==10){
-	// 			for(int i=0; i<num_of_rules; i++){
-	// 				cout << list_command[i] << endl;
-	// 			}
-	// 			cout << general_info << endl;
-
-	// 		}
-	// 		else if (strcmp(buf,"exit")==10){
-	// 			break;
-	// 		}
-	// 		else{
-	// 			cout << "unknown command! [list/exit]" << endl;
-	// 		}
-	// 	}
-	// }
-
-
 }
 
 
@@ -507,7 +511,19 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 
 
-
+// Ref: https://stackoverflow.com/questions/1726302/removing-spaces-from-a-string-in-c
+void RemoveSpaces(char* source)
+{
+  char* i = source;
+  char* j = source;
+  while(*j != 0)
+  {
+    *i = *j++;
+    if(*i != ' ')
+      i++;
+  }
+  *i = 0;
+}
 
 // Ref: https://stackoverflow.com/questions/28353173/trying-to-remove-all-numbers-from-a-string-in-c
 char* RemoveDigits(char* input)
