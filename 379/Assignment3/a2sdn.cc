@@ -3,6 +3,8 @@
 // ./a2sdn cont 1 8080
 // ./a2sdn sw1 t2.dat null null 100-110 127.0.0.1 8080
 
+// Other reference:
+// https://linux.die.net/man/3/poll
 
 // C++
 #include <iostream>
@@ -99,40 +101,13 @@ void controller(int n_swithes, int portNumber){
 
 
 
-	// variable for select()
-	// Ref: Youtube channels (keyword: select toturial)
-	// int fd;
-	// char buf[11];
-	// int ret, sret;
-	// fd = 0;
-	// fd_set readfds;
-	// // variable for select()
-
-	// MSG    msg;
-	// string rvc_msg;
-
-	// char kind[10] = "OPEN";
-	// string ab_string = "null";
-	// char ab_char[5] = "null";
-	// msg = composeMSTR(ab_string,0,0,ab_char,kind);
 
 
 
 
-	// for(int i = 0; i < n_swithes; i++){
-	// 	rvc_msg = rcvFrame(fifo_1_0);
-	// 	cout << "before send msg controller" << endl;
-	// 	int fifo_nm = fifo[i];
-	// 	cout << fifo_nm << endl;
-	// 	sendFrame(fifo_nm, &msg);
-	// 	cout << "after send msg controller" << endl;
-	// 	// cout << "recieved msg from switches: " << rvc_msg << endl;
-	// 	char *switch_1 = format_swi(rvc_msg);
-	// 	strcpy(switches[i],switch_1);
-	// 	OPEN = OPEN+1;
-	// 	ACK = ACK+1;
 
-	// }
+
+
 
 
 
@@ -163,13 +138,12 @@ void controller(int n_swithes, int portNumber){
 	while(1){
 		
 
-		// poll setup
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
-
 		rc_msg = poll(polls, 7, 0);
-		// if (rc_msg < 0) {error("poll() failed...\n");}
-		// if (rc_msg == 0){cout<<"poll() timeout..."<<endl;}
-		// if (rc_msg > 0 ) { cout<< "poll() msg" << endl;}
+
+
+
+
 		if (rc_msg < 0) {
 			error("poll() failed...\n");
 		}
@@ -200,8 +174,22 @@ void controller(int n_swithes, int portNumber){
 						}
 
 					}else if(polls[i].fd == sockfd){
+						// At this point, there is already incoming message which is sockfd
+						int read_i, write_i;
 
-						cout  << "ACCEPTING CONNECTION ... " << endl;
+						newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
+						if (newsockfd < 0) { error("ERROR on accept"); }  // error checking for accept
+						char *buffer = new char[10];
+						
+						
+						read_i = read(newsockfd,buffer,255); 				  // read the newsockfd; not the sockfd
+						if (read_i < 0) error("ERROR reading from socket");	  // error checking for read error;
+						
+						
+						write_i = write(newsockfd,"I got your message",18); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
+						if (write_i < 0) error("ERROR writing to socket");	
+						printf("Here is the message: %s\n",buffer);
+						// cout  << "ACCEPTING CONNECTION ... " << endl;
 
 					}
 
@@ -218,14 +206,6 @@ void controller(int n_swithes, int portNumber){
 			}
 
 		}
-		
-		// should I start to listen right away like this?
-		// https://linux.die.net/man/3/poll
-		// struct pollfd {
-  //    		int    fd;       /* file descriptor to check, or <0 to ignore */
-  //    		short  events;   /* events of interest on fd */
-  //    		short  revents;  /* events that occurred on fd */
-		// };
 	}
 
 
@@ -240,6 +220,8 @@ void controller(int n_swithes, int portNumber){
 // when the switch is down, the connection lost signal needs to be sent to controller 
 void switches(char **arg, const string &input, char *serverAddress, int portNumber){
 	
+	// sockfd is standard, which is always direct to controller's fd
+	// see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
 	int sockfd,n;
 	struct sockaddr_in server_obj;
 	struct hostent *server;
@@ -263,23 +245,19 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
 	server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
 
-	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) 
-	{ 
-		error("ERROR connecting");
-	}else{
-		cout << "Succesfully connect to server!... " << endl;
-	}
+	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
 
-	char *buffer = new char[256];   // set all buffer byte to zero; initialize buffer 
-    // fgets(buffer,255,stdin); // get user input 
+	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
+	strcpy(buffer,"Connect to you!");
+	n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send 
+	if (n < 0) { error("ERROR writing to socket"); }
 
 
-	// should write to server in specific conditions and read from server aswellas other switches in while loop
-    // n = write(sockfd,buffer,strlen(buffer)); // write to the socket sockfd and send 
-	// if (n < 0) { error("ERROR writing to socket");}
 
-	// n = read(sockfd,buffer,255);  // read back from socket sockfd 
-	// if (n < 0) { error("ERROR reading from socket") ;}
+
+
+
+
 
 
 
@@ -379,30 +357,22 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	
 	myfile.close();
 
-	// exit(0);
-	// variable for select()
-	int fd;
-	char buf[11];
-	int ret, sret;
-	fd = 0;
-	fd_set readfds;
-	// variable for select()
 
 
 
-	MSG send_msg;
-	char kind[10] = "ACK";
-	string rvc_msg;
-	// send msg to controller;
-	// cout << fifo_number << endl;	
-	send_msg = composeMSTR(input,port1,port2,port3,kind);
+	// MSG send_msg;
+	// char kind[10] = "ACK";
+	// string rvc_msg;
+	// // send msg to controller;
+	// // cout << fifo_number << endl;	
+	// send_msg = composeMSTR(input,port1,port2,port3,kind);
 
-	sendFrame(fifo_1_0,&send_msg);
-	cout << "before get msg switches" << endl;
-	rvc_msg = rcvFrame(fifo_number); 
-	cout << "recived from controller: " << rvc_msg << endl;
-	OPEN++;
-	ACK++;
+	// sendFrame(fifo_1_0,&send_msg);
+	// cout << "before get msg switches" << endl;
+	// rvc_msg = rcvFrame(fifo_number); 
+	// cout << "recived from controller: " << rvc_msg << endl;
+	// OPEN++;
+	// ACK++;
 
 
 	// prepare the print for list command 
@@ -455,9 +425,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
 
 		rc_msg = poll(polls, 4, 0);
-		// if (rc_msg < 0) {error("poll() failed...\n");}
-		// if (rc_msg == 0){cout<<"poll() timeout..."<<endl;}
-		// if (rc_msg > 0 ) { cout<< "poll() msg" << endl;}
+
 		if (rc_msg < 0) {
 			error("poll() failed...\n");
 		}
@@ -487,8 +455,13 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 
 					}else if(polls[i].fd == sockfd){
+						int read_i;
+						char *buffer = new char[255];
+						read_i = read(sockfd,buffer,255);  							// read back from socket sockfd 
+						if (read_i < 0) {error("ERROR reading from socket");}
+    					printf("%s\n",buffer);
 
-						cout  << "ACCEPTING CONNECTION ... " << endl;
+						// cout  << "ACCEPTING CONNECTION ... " << endl;
 
 					}
 
