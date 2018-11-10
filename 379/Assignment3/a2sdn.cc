@@ -220,38 +220,37 @@ void controller(int n_swithes, int portNumber){
 // when the switch is down, the connection lost signal needs to be sent to controller 
 void switches(char **arg, const string &input, char *serverAddress, int portNumber){
 	
-	// sockfd is standard, which is always direct to controller's fd
-	// see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
-	int sockfd,n;
-	struct sockaddr_in server_obj;
-	struct hostent *server;
-	sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
-	if (sockfd < 0) { error("ERROR opening socket"); }
-	server = gethostbyname(serverAddress);
-	// struct hostent {
-    //     char   *h_name;
-    //     char  **h_aliases;
-    //     int     h_addrtype;
-    //     int     h_length;
-    //     char  **h_addr_list; 
+	// // sockfd is standard, which is always direct to controller's fd
+	// // see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
+	// int sockfd,n;
+	// struct sockaddr_in server_obj;
+	// struct hostent *server;
+	// sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
+	// if (sockfd < 0) { error("ERROR opening socket"); }
+	// server = gethostbyname(serverAddress);
+	// // struct hostent {
+    // //     char   *h_name;
+    // //     char  **h_aliases;
+    // //     int     h_addrtype;
+    // //     int     h_length;
+    // //     char  **h_addr_list; 
+    // // }
+	// if (server == NULL) { 
+	// 	cout << "Can't read the server address! " << endl;		// error check the server
+    //     exit(0);
     // }
-	if (server == NULL) { 
-		cout << "Can't read the server address! " << endl;		// error check the server
-        exit(0);
-    }
 
-	bzero((char *) &server_obj, sizeof(server_obj));
-	server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
-	bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
-	server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
+	// bzero((char *) &server_obj, sizeof(server_obj));
+	// server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
+	// bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
+	// server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
 
-	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
+	// if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
 
-	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
-	strcpy(buffer,"Connect to you!");
-	n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send 
-	if (n < 0) { error("ERROR writing to socket"); }
-
+	// char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
+	// strcpy(buffer,"Connect to you!");
+	// n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send 
+	// if (n < 0) { error("ERROR writing to socket"); }
 
 
 
@@ -274,6 +273,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int DELIVER  = 0;
 	int pri      = PRI;
 	int pkgCount = 0;
+	int original_pkgCount= 0;				// for counting the orignal rule's package
 
 	int ADMIT    = 0;
 	int OPEN     = 0;
@@ -282,9 +282,10 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int ADDRULE  = 0;   // 
 	int RELAYOUT = 0;
 	int RELAYIN  = 0;
+	int FORWARD  = 0;
 
-	int num_of_rules = 0;
-
+	int num_of_rules = 1;   				// always one existing rule
+ 
 	//determine the fifo number
 	int fifo_n;
 	char const * tmp_input = input.c_str();
@@ -294,7 +295,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	
 	int fifo_number = fifo[fifo_n-1];
 	
-	cout << fifo_number << endl;
+	// cout << fifo_number << endl;
 	
 	// cout << arg[1] << endl; // sw
 	// cout << arg[2] << endl; // file name
@@ -309,7 +310,28 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	strcpy(port3,"100-110");
 	int DEST_PORT_LOW, DEST_PORT_HIGH;
 	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
-	// cout << SCR_PORT << endl;
+	// cout << DEST_PORT_LOW << endl;
+	// cout << DEST_PORT_HIGH << endl;
+
+
+	// store info from file in to 2d array
+	// should we transmit msg while parsing the file or transmit the msg after finishing parse the file?
+	// Declare 2d array;
+	// int **p;
+	// p = new int*[5]; // dynamic `array (size 5) of pointers to int`
+
+	// for (int i = 0; i < 5; ++i) {
+  	// 	p[i] = new int[10];
+  	// 	// each i-th pointer is now pointing to dynamic array (size 10)
+  	// 	// of actual int values
+	// }
+	char **rules;
+	rules = new char*[10];
+	int package_count[10][1];
+	// package_count = new int[1];
+	strcpy(rules[0],port3);
+	// rules[0] = port3; 			// original rule is always at first place;
+
 	//parse String
 	ifstream myfile;
 	string STRING;
@@ -318,7 +340,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	while(!myfile.eof()) // To get you all the lines.
 	{
         getline(myfile,STRING); // Saves the line in STRING.
-        int src_port, dest_port;
+		int file_lines = 0;
         if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
 			// split string here:
 			char delimiter[1];
@@ -327,29 +349,80 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 			strcpy (tab2, STRING.c_str());
 			char splited_str[MAXLINE][MAXWORD];
 			split(tab2,splited_str,delimiter);
-			// cout << splited_str[0] << endl;
-			// cout << splited_str[1] << endl;
-			// cout << splited_str[2] << endl;
+			// cout << splited_str[0] << endl;  // sw1
+			// cout << splited_str[1] << endl;  // 100
+			// cout << splited_str[2] << endl;  // 102
 			string first_arg(splited_str[0]);
-			// cout << first_arg << "and " << input<< endl;
+			
         	if(first_arg.compare(input)==0){
+				// ignores the line for other switches;s
+				// same swith number; parse the line; file_line increments by one at the end of the if;
+				
 
-        		string src_port_s = STRING.substr(5,5);
-        		string dest_port_s = STRING.substr(10,10);
-        		src_port  = atoi(src_port_s.c_str());
-        		dest_port = atoi(dest_port_s.c_str());
-				// cout << src_port << ":" << dest_port << endl;
-        		if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
-        			ADMIT++;
-        			DELIVER++;
-        			pkgCount++;
-					// cout << "destination port: " << dest_port << endl;
-        		}else{
-					// cout << "destination port (else): " << dest_port << endl;
-        			DELIVER++;
-        			ADDRULE++;
-        			QUERY++;
-        		}
+				int src_port, dest_port, delay_time;
+				if (strcmp(splited_str[1],"delay")!=0){
+					src_port = atoi(splited_str[1]);
+					dest_port = atoi(splited_str[2]);
+					// cout << splited_str[1] << endl;
+					// S_LOW = 0; S_HIGH = 1000;
+					// DEST_PORT_LOW and DEST_PORT_HIGH are defined by user;
+					if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
+        				// within the range;
+						
+						ADMIT++;
+						FORWARD++;							// for switch list				
+
+        			}else{
+						// for new rule, all I need to know is the destination port (splited_str[2])
+						// for print out, if new rule is 701 then it will look like 701-701
+						char *ranges = new char[10];
+						strcat(ranges,splited_str[2]);
+						strcat(ranges,"-");
+						strcat(ranges,splited_str[2]);
+						
+						int new_rule = 0;
+						for(int i=0;i<num_of_rules;i++){
+							char *current_rules = rules[i];
+							int current_rules_scr_port, current_rules_dest_port;
+							sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
+							if (dest_port == current_rules_dest_port){
+								// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
+								int cur_count;
+								cur_count = *package_count[i];
+								// package_count[i] = cur_count+1;
+								break;
+							}
+							// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
+							// otherwise, it will break from this for loop before head
+							new_rule = 1;
+
+						}
+						if(new_rule){
+							strcpy(rules[num_of_rules+1],ranges);
+							*package_count[num_of_rules+1] = 1;
+							ADDRULE++;
+							QUERY++;
+						}
+						
+
+						// out of range, send to controller for next instruction;
+						// if the range is already in the out_of_range list; then don't append the list
+						// else, append a new list, number_of_rule++;
+        				
+        				
+        			}
+					cout << src_port << endl;
+					pkgCount++;								// pkgCount always incrementing
+				}else{
+					delay_time = atoi(splited_str[2]);
+					cout << "Entering a delay period for " << delay_time << " millisec" << endl;
+					usleep(delay_time*1000);
+					// cout << delay_time << endl;
+				}
+
+
+
+				file_lines++;
         	}
         }
 
@@ -402,6 +475,39 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
 	string general_info = general_info_1 + general_info_2;
 
+	exit(0);
+
+	// sockfd is standard, which is always direct to controller's fd
+	// see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
+	int sockfd,n;
+	struct sockaddr_in server_obj;
+	struct hostent *server;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
+	if (sockfd < 0) { error("ERROR opening socket"); }
+	server = gethostbyname(serverAddress);
+	// struct hostent {
+    //     char   *h_name;
+    //     char  **h_aliases;
+    //     int     h_addrtype;
+    //     int     h_length;
+    //     char  **h_addr_list; 
+    // }
+	if (server == NULL) { 
+		cout << "Can't read the server address! " << endl;		// error check the server
+        exit(0);
+    }
+
+	bzero((char *) &server_obj, sizeof(server_obj));
+	server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
+	bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
+	server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
+
+	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
+
+	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
+	strcpy(buffer,"Connect to you!");
+	n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send 
+	if (n < 0) { error("ERROR writing to socket"); }
 
 
 	// poll setup
