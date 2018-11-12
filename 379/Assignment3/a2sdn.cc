@@ -2,6 +2,7 @@
 // with one switches
 // ./a2sdn cont 1 8080
 // ./a2sdn sw1 t2.dat null null 100-110 127.0.0.1 8080
+// ./a2sdn sw2 t2.dat null null 200-210 127.0.0.1 8080
 
 // Other reference:
 // https://linux.die.net/man/3/poll
@@ -78,6 +79,7 @@ void controller(int n_swithes, int portNumber){
 
 	// socket setup
 	int sockfd, newsockfd;							 // socket (file decriptor) declaration:
+	int switch_socket_fd[n_swithes];				 // declare the array that store number of switches socket fd;
 	socklen_t clilen; 								 // length of bytes for store address
 	char *buffer = new char[256];		
     struct sockaddr_in serv_addr, cli_addr;		     // define two scokaddr_in (struct) serv_addr and cli_addr; 
@@ -97,18 +99,6 @@ void controller(int n_swithes, int portNumber){
 	int ACK  = 0;
 	int QUERY= 0;
 	int ADD  = 0;
-	char switches[n_swithes][50];
-
-
-
-
-
-
-
-
-
-
-
 
 
     string OPEN_s = convert_int_to_string(OPEN);
@@ -140,8 +130,6 @@ void controller(int n_swithes, int portNumber){
 
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
 		rc_msg = poll(polls, 7, 0);
-
-
 
 
 		if (rc_msg < 0) {
@@ -181,6 +169,11 @@ void controller(int n_swithes, int portNumber){
 						if (newsockfd < 0) { error("ERROR on accept"); }  // error checking for accept
 						char *buffer = new char[10];
 						
+						// using array to store the newsockfd for all switches!
+						// write back to that newsockfd corresponding to the switches.
+						// do I need this? after I got the msg, then I send it back to where it comes from; ask about this;
+						// other than that, try to finish recive msg and parse the msg and update the stats
+						// print the incoming msg from switches
 						
 						read_i = read(newsockfd,buffer,255); 				  // read the newsockfd; not the sockfd
 						if (read_i < 0) error("ERROR reading from socket");	  // error checking for read error;
@@ -284,19 +277,15 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int RELAYIN  = 0;
 	int FORWARD  = 0;
 
-	int num_of_rules = 1;   				// always one existing rule
+	int num_of_rules = 1;   				// initialize number of rules
  
 	//determine the fifo number
 	int fifo_n;
 	char const * tmp_input = input.c_str();
-	
-	sscanf(tmp_input, "sw%d", &fifo_n);
-	//cout << tmp_input << " and " << fifo_n << endl;
-	
-	int fifo_number = fifo[fifo_n-1];
-	
-	// cout << fifo_number << endl;
-	
+	sscanf(tmp_input, "sw%d", &fifo_n);	
+	int fifo_number_port1 = fifo[fifo_n-1];
+	int fifo_number_port2 = fifo[fifo_n+1];
+
 	// cout << arg[1] << endl; // sw
 	// cout << arg[2] << endl; // file name
 	// cout << arg[3] << endl; // port 1
@@ -307,35 +296,35 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
 	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[4], "sw%d", &n);port2 = n;}
 	
-	strcpy(port3,"100-110");
-	int DEST_PORT_LOW, DEST_PORT_HIGH;
-	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
-	// cout << DEST_PORT_LOW << endl;
-	// cout << DEST_PORT_HIGH << endl;
 
+	// if declare DEST_PORT_LOW, DEST_PORT_HIGH at this point, the number for them will be changed later on;
+	// strcpy(port3,arg[5]);
+	// cout << port3 << endl;
+	// int DEST_PORT_LOW, DEST_PORT_HIGH;
+	// sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
 
-	// store info from file in to 2d array
-	// should we transmit msg while parsing the file or transmit the msg after finishing parse the file?
-	// Declare 2d array;
-	// int **p;
-	// p = new int*[5]; // dynamic `array (size 5) of pointers to int`
-
-	// for (int i = 0; i < 5; ++i) {
-  	// 	p[i] = new int[10];
-  	// 	// each i-th pointer is now pointing to dynamic array (size 10)
-  	// 	// of actual int values
-	// }
-	char **rules;
-	rules = new char*[10];
-	int package_count[10][1];
+	// char rules[][20] = {};
+	// char *rules[20];
+	int package_count[] = {};
+	
+	// char name[5][10] = {} ;
+	// strcpy(name[1],"abc");
+	// cout << name[1] << endl;	
 	// package_count = new int[1];
-	strcpy(rules[0],port3);
 	// rules[0] = port3; 			// original rule is always at first place;
-
+	char rules[][20] = {};
+	strcpy(rules[0],arg[5]);
+	// cout << "rules[0] " << rules[0] << endl;
+	
 	//parse String
 	ifstream myfile;
 	string STRING;
 	myfile.open(arg[2]);
+
+
+	strcpy(port3,arg[5]);
+	int DEST_PORT_LOW, DEST_PORT_HIGH;
+	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
 	
 	while(!myfile.eof()) // To get you all the lines.
 	{
@@ -363,14 +352,16 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 				if (strcmp(splited_str[1],"delay")!=0){
 					src_port = atoi(splited_str[1]);
 					dest_port = atoi(splited_str[2]);
-					// cout << splited_str[1] << endl;
-					// S_LOW = 0; S_HIGH = 1000;
-					// DEST_PORT_LOW and DEST_PORT_HIGH are defined by user;
+					// cout << DEST_PORT_LOW << " and " << DEST_PORT_HIGH << endl; //12337 and 825045040 will happened if declare the stuff very top;
+					// cout << "===========" << endl;
 					if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
         				// within the range;
-						
+						// cout << src_port << " and " << dest_port << endl;
+						// package_count[0] = package_count[0]+1;
 						ADMIT++;
-						FORWARD++;							// for switch list				
+						FORWARD++;							// for switch list
+						pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
+
 
         			}else{
 						// for new rule, all I need to know is the destination port (splited_str[2])
@@ -379,42 +370,58 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						strcat(ranges,splited_str[2]);
 						strcat(ranges,"-");
 						strcat(ranges,splited_str[2]);
+						cout << ranges << endl;
 						
 						int new_rule = 0;
 						for(int i=0;i<num_of_rules;i++){
-							char *current_rules = rules[i];
+							char *current_rules = new char[20];
+							strcpy(current_rules,rules[i]);
+							// cout << *rules << endl;
+							cout << "current_rules" << current_rules << endl;
 							int current_rules_scr_port, current_rules_dest_port;
 							sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
+							cout << current_rules_scr_port << " and " << current_rules_dest_port << endl;
 							if (dest_port == current_rules_dest_port){
 								// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
 								int cur_count;
-								cur_count = *package_count[i];
-								// package_count[i] = cur_count+1;
+								cur_count = package_count[i];
+								cout << "cur_count" << cur_count << endl;
+								package_count[i] = cur_count+1;
+								// cout <<package_count[i] <<endl;
 								break;
+								
 							}
 							// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
 							// otherwise, it will break from this for loop before head
 							new_rule = 1;
-
+							cout << new_rule << endl;
+							
 						}
+
+
 						if(new_rule){
-							strcpy(rules[num_of_rules+1],ranges);
-							*package_count[num_of_rules+1] = 1;
+							strcpy(rules[num_of_rules],ranges);
+							// cout << ranges << endl;
+							// *package_count[num_of_rules+1] = 1;
+							
+							// cout << rules[0] << endl;
+
 							ADDRULE++;
 							QUERY++;
 						}
+						exit(0);
 						
 
 						// out of range, send to controller for next instruction;
 						// if the range is already in the out_of_range list; then don't append the list
 						// else, append a new list, number_of_rule++;
-        				
+        				// exit(0);
         				
         			}
-					cout << src_port << endl;
-					pkgCount++;								// pkgCount always incrementing
+					// cout << src_port << endl;
 				}else{
 					delay_time = atoi(splited_str[2]);
+					
 					cout << "Entering a delay period for " << delay_time << " millisec" << endl;
 					usleep(delay_time*1000);
 					// cout << delay_time << endl;
@@ -429,9 +436,8 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
     }
 	
 	myfile.close();
-
-
-
+	exit(0);
+	
 
 	// MSG send_msg;
 	// char kind[10] = "ACK";
@@ -475,7 +481,6 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
 	string general_info = general_info_1 + general_info_2;
 
-	exit(0);
 
 	// sockfd is standard, which is always direct to controller's fd
 	// see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
@@ -506,9 +511,12 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
 	strcpy(buffer,"Connect to you!");
-	n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send 
+	n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send
+																// should write the info from parsing the packet file
 	if (n < 0) { error("ERROR writing to socket"); }
 
+	// prepare fifo msg and send at this point
+	// if there is any msg for port1 and port2; prepare it no matter what controller tell me 
 
 	// poll setup
 	// maximum 4 fp: stdin, socket, fifo1, fifo2
@@ -523,6 +531,12 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	polls[1].fd = sockfd;
 	polls[1].events = POLLIN;
 	// polls[2].fd = sockfd_2;
+	// if it is sw2 then polls[2].fd = fifo_1_1; polls[3].fd = fifo_3_1
+	// keep listening from both socket and other switches
+	polls[2].fd = fifo_number_port1;
+	polls[2].events = POLLIN;
+	polls[3].fd = fifo_number_port2;
+	polls[3].events = POLLIN;
 
 	while(1){
 		
@@ -568,6 +582,10 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
     					printf("%s\n",buffer);
 
 						// cout  << "ACCEPTING CONNECTION ... " << endl;
+
+					}else if (polls[i].fd == fifo_number_port1 || polls[i].fd == fifo_number_port2 ){
+						// do something about the incoming fifo numbers
+						continue;
 
 					}
 
