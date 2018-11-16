@@ -45,7 +45,7 @@ using namespace std;
 
 typedef enum {OPEN, ACK, QUERY, ADD, RELAY} KIND;	  // Message kinds
 char KINDNAME[][MAXWORD]= { "OPEN", "ACK", "QUERY", "ADD", "RELAY" };
-typedef struct {char kind[10]; int port1; int port2; char port3[10]; char switch_no[5]; } MSG;
+typedef struct {int port1; int port2; char port3[10]; char switch_no[5];} MSG;
 typedef struct { KIND kind; MSG msg; } FRAME;
 
 
@@ -59,9 +59,9 @@ int *fifo;
 char* RemoveDigits(char* input);
 void controller(int n_swithes, int portNumber);
 void switches(char **arg, const string &input, char *serverAddress, int portNumber);
-MSG composeMSTR (const string &a,  int port1,  int port2, char *port3, char *kind);
-void sendFrame (int fd, MSG *msg);
-string rcvFrame (int fd);
+MSG composeMSTR (const string &a,  int port1,  int port2, char *port3);
+int sendFrame (int fd, KIND kind, MSG *msg);
+FRAME rcvFrame (int fd);
 int split(char inStr[],  char token[][MAXWORD], char fs[]);
 char * format_swi(const string &a);
 void set_cpu_time();
@@ -95,7 +95,7 @@ void controller(int n_swithes, int portNumber){
     listen(sockfd,n_swithes);						 // start to listen incoming connection
 
 
-
+	int newsockfd_list[8] = {0,0,0,0,0,0,0,0};
 
 	int OPEN = 0;
 	int ACK  = 0;
@@ -157,6 +157,10 @@ void controller(int n_swithes, int portNumber){
 
 						}
 						else if (strcmp(buffer,"exit") == 10){
+							// cout << "Out of while loop" << endl;
+							// for(int i=1; i<=7;i++){
+							// 	cout << newsockfd_list[i] << endl;
+							// }
 							exit(0);
 						}
 						else{
@@ -169,15 +173,28 @@ void controller(int n_swithes, int portNumber){
 
 						newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
 						if (newsockfd < 0) { error("ERROR on accept"); }  // error checking for accept
-						char *buffer = new char[10];
+						char *buffer = new char[20];
 						
 						// using array to store the newsockfd for all switches!
 						// write back to that newsockfd corresponding to the switches.
 						// do I need this? after I got the msg, then I send it back to where it comes from; ask about this;
 						// other than that, try to finish recive msg and parse the msg and update the stats
 						// print the incoming msg from switches
-						cout << newsockfd << endl;
-						read_i = read(newsockfd,buffer,255); 				  // read the newsockfd; not the sockfd
+						// cout << newsockfd << endl; // this return 12 for sw1 and 13 for sw2; need make list to keep the fd
+						FRAME frame;
+						MSG msg;
+						memset( (char *) &frame, 0, sizeof(frame) );
+						frame = rcvFrame(newsockfd);
+						cout << "KINDNAME[frame.kind]" << KINDNAME[frame.kind] << endl;
+						msg = frame.msg;
+						cout << "msg.switch_no" << msg.switch_no << endl;
+
+						// read_i = read(newsockfd,buffer,255); 				  // read the newsockfd; not the sockfd
+
+						int switch_number;
+						sscanf(buffer,"sw%d",&switch_number);
+						cout << switch_number << endl;
+						newsockfd_list[switch_number] = newsockfd;
 						if (read_i < 0) error("ERROR reading from socket");	  // error checking for read error;
 						
 						
@@ -197,6 +214,8 @@ void controller(int n_swithes, int portNumber){
 
 		}
 	}
+
+	
 
 
 
@@ -270,7 +289,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int original_pkgCount= 0;				// for counting the orignal rule's package
 
 	int ADMIT    = 0;
-	int OPEN     = 0;
+	int OPEN_C     = 0;
 	int ACK      = 0;
 	int QUERY    = 0;   // send to controller the query
 	int ADDRULE  = 0;   // 
@@ -327,142 +346,142 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int DEST_PORT_LOW, DEST_PORT_HIGH;
 	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
 	
-	while(!myfile.eof()) // To get you all the lines.
-	{
-        getline(myfile,STRING); // Saves the line in STRING.
-		int file_lines = 0;
-        if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
-			// split string here:
-			char delimiter[1];
-			strcpy(delimiter," ");
-			char * tab2 = new char [STRING.length()+1];
-			strcpy (tab2, STRING.c_str());
-			char splited_str[MAXLINE][MAXWORD];
-			split(tab2,splited_str,delimiter);
-			// cout << splited_str[0] << endl;  // sw1
-			// cout << splited_str[1] << endl;  // 100
-			// cout << splited_str[2] << endl;  // 102
-			string first_arg(splited_str[0]);
+	// while(!myfile.eof()) // To get you all the lines.
+	// {
+    //     getline(myfile,STRING); // Saves the line in STRING.
+	// 	int file_lines = 0;
+    //     if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
+	// 		// split string here:
+	// 		char delimiter[1];
+	// 		strcpy(delimiter," ");
+	// 		char * tab2 = new char [STRING.length()+1];
+	// 		strcpy (tab2, STRING.c_str());
+	// 		char splited_str[MAXLINE][MAXWORD];
+	// 		split(tab2,splited_str,delimiter);
+	// 		// cout << splited_str[0] << endl;  // sw1
+	// 		// cout << splited_str[1] << endl;  // 100
+	// 		// cout << splited_str[2] << endl;  // 102
+	// 		string first_arg(splited_str[0]);
 			
-        	if(first_arg.compare(input)==0){
-				// ignores the line for other switches;s
-				// same swith number; parse the line; file_line increments by one at the end of the if;
+    //     	if(first_arg.compare(input)==0){
+	// 			// ignores the line for other switches;s
+	// 			// same swith number; parse the line; file_line increments by one at the end of the if;
 				
 
-				int src_port, dest_port, delay_time;
-				if (strcmp(splited_str[1],"delay")!=0){
-					src_port = atoi(splited_str[1]);
-					dest_port = atoi(splited_str[2]);
-					// cout << DEST_PORT_LOW << " and " << DEST_PORT_HIGH << endl; //12337 and 825045040 will happened if declare the stuff very top;
-					// cout << "===========" << endl;
-					if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
-        				// within the range;
-						// cout << src_port << " and " << dest_port << endl;
-						// package_count[0] = package_count[0]+1;
-						ADMIT++;
-						FORWARD++;							// for switch list
-						pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
+	// 			int src_port, dest_port, delay_time;
+	// 			if (strcmp(splited_str[1],"delay")!=0){
+	// 				src_port = atoi(splited_str[1]);
+	// 				dest_port = atoi(splited_str[2]);
+	// 				// cout << DEST_PORT_LOW << " and " << DEST_PORT_HIGH << endl; //12337 and 825045040 will happened if declare the stuff very top;
+	// 				// cout << "===========" << endl;
+	// 				if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
+    //     				// within the range;
+	// 					// cout << src_port << " and " << dest_port << endl;
+	// 					// package_count[0] = package_count[0]+1;
+	// 					ADMIT++;
+	// 					FORWARD++;							// for switch list
+	// 					pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
 
 
-        			}else{
-						// for new rule, all I need to know is the destination port (splited_str[2])
-						// for print out, if new rule is 701 then it will look like 701-701
-						char *ranges = new char[10];
-						strcat(ranges,splited_str[2]);
-						strcat(ranges,"-");
-						strcat(ranges,splited_str[2]);
-						// cout << ranges << endl;
+    //     			}else{
+	// 					// for new rule, all I need to know is the destination port (splited_str[2])
+	// 					// for print out, if new rule is 701 then it will look like 701-701
+	// 					char *ranges = new char[10];
+	// 					strcat(ranges,splited_str[2]);
+	// 					strcat(ranges,"-");
+	// 					strcat(ranges,splited_str[2]);
+	// 					// cout << ranges << endl;
 						
-						int new_rule = 0;
-						cout << "" << endl;
-						cout << STRING << endl;
-						cout << "===========" << endl;
-						for(int i=0;i<num_of_rules;i++){
-							char *current_rules = new char[20];
-							strcpy(current_rules,rules[i]);
-							// cout << *rules << endl;
-							cout << "current_rules" << current_rules << endl;
-							int current_rules_scr_port, current_rules_dest_port;
-							sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
-							// cout << "dest_port" << dest_port << endl;
-							cout << current_rules_dest_port << " and " << dest_port << endl;
-							if (dest_port == current_rules_dest_port){
-								// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
-								int cur_count;
-								cur_count = package_count[i];
-								// cout << "cur_count" << cur_count << endl;
-								package_count[i] = cur_count+1;
-								// cout <<package_count[i] <<endl;
-								break;
+	// 					int new_rule = 0;
+	// 					cout << "" << endl;
+	// 					cout << STRING << endl;
+	// 					cout << "===========" << endl;
+	// 					for(int i=0;i<num_of_rules;i++){
+	// 						char *current_rules = new char[20];
+	// 						strcpy(current_rules,rules[i]);
+	// 						// cout << *rules << endl;
+	// 						cout << "current_rules" << current_rules << endl;
+	// 						int current_rules_scr_port, current_rules_dest_port;
+	// 						sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
+	// 						// cout << "dest_port" << dest_port << endl;
+	// 						cout << current_rules_dest_port << " and " << dest_port << endl;
+	// 						if (dest_port == current_rules_dest_port){
+	// 							// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
+	// 							int cur_count;
+	// 							cur_count = package_count[i];
+	// 							// cout << "cur_count" << cur_count << endl;
+	// 							package_count[i] = cur_count+1;
+	// 							// cout <<package_count[i] <<endl;
+	// 							break;
 								
-							}
-							// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
-							// otherwise, it will break from this for loop before head
-							cout << "new_rule_______________" << endl;
+	// 						}
+	// 						// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
+	// 						// otherwise, it will break from this for loop before head
+	// 						cout << "new_rule_______________" << endl;
 							
 
-							new_rule = 1;
-							// sw1  100  200
-							// ===========
-							// current_rules100-110
-							// 110 and 200
-							// new_rule_______________
+	// 						new_rule = 1;
+	// 						// sw1  100  200
+	// 						// ===========
+	// 						// current_rules100-110
+	// 						// 110 and 200
+	// 						// new_rule_______________
 
-							// sw1  100  200
-							// ===========
-							// current_rules100-110					// bug info
-							// 110 and 200							// atthis point, even when dest_port != current_rules_dest_port
-																	// the new_rule is still mark as one
-							// new_rule_______________
-							// current_rules200-200
-							// 200 and 200
+	// 						// sw1  100  200
+	// 						// ===========
+	// 						// current_rules100-110					// bug info
+	// 						// 110 and 200							// atthis point, even when dest_port != current_rules_dest_port
+	// 																// the new_rule is still mark as one
+	// 						// new_rule_______________
+	// 						// current_rules200-200
+	// 						// 200 and 200
 
-							// cout << new_rule << endl;
+	// 						// cout << new_rule << endl;
 							
-						}
+	// 					}
 
 
-						if(new_rule){
+	// 					if(new_rule){
 							
-							// cout << "ranges " <<ranges << endl;
-							// cout << "num_of_rules "<<num_of_rules << endl; 
-							strcpy(rules[num_of_rules],ranges);
-							// cout << ranges << endl;
-							// *package_count[num_of_rules+1] = 1;
+	// 						// cout << "ranges " <<ranges << endl;
+	// 						// cout << "num_of_rules "<<num_of_rules << endl; 
+	// 						strcpy(rules[num_of_rules],ranges);
+	// 						// cout << ranges << endl;
+	// 						// *package_count[num_of_rules+1] = 1;
 							
-							// cout << rules[0] << endl;
-							num_of_rules++;
-							ADDRULE++;
-							QUERY++;
-						}
-						// exit(0);
+	// 						// cout << rules[0] << endl;
+	// 						num_of_rules++;
+	// 						ADDRULE++;
+	// 						QUERY++;
+	// 					}
+	// 					// exit(0);
 						
 
-						// out of range, send to controller for next instruction;
-						// if the range is already in the out_of_range list; then don't append the list
-						// else, append a new list, number_of_rule++;
-        				// exit(0);
+	// 					// out of range, send to controller for next instruction;
+	// 					// if the range is already in the out_of_range list; then don't append the list
+	// 					// else, append a new list, number_of_rule++;
+    //     				// exit(0);
         				
-        			}
-					// cout << src_port << endl;
-				}else{
-					delay_time = atoi(splited_str[2]);
+    //     			}
+	// 				// cout << src_port << endl;
+	// 			}else{
+	// 				delay_time = atoi(splited_str[2]);
 					
-					cout << "Entering a delay period for " << delay_time << " millisec" << endl;
-					usleep(delay_time*1000);
-					// cout << delay_time << endl;
-				}
+	// 				cout << "Entering a delay period for " << delay_time << " millisec" << endl;
+	// 				usleep(delay_time*1000);
+	// 				// cout << delay_time << endl;
+	// 			}
 
 
 
-				file_lines++;
-        	}
-        }
+	// 			file_lines++;
+    //     	}
+    //     }
 
-    }
-	cout << ADDRULE << endl;
-	myfile.close();
-	exit(0);
+    // }
+	// cout << ADDRULE << endl;
+	// myfile.close();
+	// exit(0);
 	
 
 	// MSG send_msg;
@@ -536,8 +555,12 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
 
 	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
-	strcpy(buffer,"Connect to you!");
-	n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send
+	strcpy(buffer,tmp_input);
+	MSG msg;
+	msg = composeMSTR(input,port1,port2,arg[5]);
+	n = sendFrame(sockfd,OPEN,&msg);
+
+	// n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send
 																// should write the info from parsing the packet file
 	if (n < 0) { error("ERROR writing to socket"); }
 
@@ -664,55 +687,44 @@ char* RemoveDigits(char* input)
 }
 
 // Ref: eclass
-MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3, char *kind )
+MSG composeMSTR (const string &a,  int port1,  int port2,  char *port3)
 {
     MSG  msg;
 
     memset( (char *) &msg, 0, sizeof(msg) );
-   
+
     msg.port1 = port1;
     msg.port2 = port2;
     strcpy(msg.port3,port3);
-    strcpy(msg.kind,kind);
-   
     strncpy(msg.switch_no,a.c_str(),sizeof(msg.switch_no)); // port1 value changed at this point;
     return msg;
 } 
 
 
 // recive the msg struct, but send the string object;
-void sendFrame (int fd, MSG *msg)
-{
-
-	char *MESSAGE_P = (char *) malloc(8192);
-
-	
-	string port1 = convert_int_to_string(msg->port1);
-	string port2 = convert_int_to_string(msg->port2);
-	string port3 = msg->port3;
-	string s_no  = msg->switch_no;
-	string kind  = msg->kind;
-
-	string MESSAGE = port1 + ";" + port2 + ";" + port3 + ";" + s_no + ";" + kind;
-	char const * MESSAGE_P_P = MESSAGE.c_str();
-	// cout << "sending msg: " << MESSAGE_P << endl;
-	// cout << MESSAGE_P << endl;
-	write (fd, MESSAGE_P_P, 8192); // write the message_p into fifo file with constraint 8192
-
+int sendFrame (int fd, KIND kind, MSG *msg)
+{	
+	int n;
+	FRAME  frame;
+	assert (fd >= 0);  // make sure that fd is valid 
+	memset( (char *) &frame, 0, sizeof(frame) ); // allocate memory for frame;
+	frame.kind= kind;
+    frame.msg= *msg;
+	n = write (fd, (char *) &frame, sizeof(frame)); // write the message_p into fifo file with constraint 8192
+	return n;
 }
 
        
-string rcvFrame (int fd)
+FRAME rcvFrame (int fd)
 { 
 	int len; 
-	char * MESSAGE_P = (char *) malloc(8192);
-
-    len = read (fd, MESSAGE_P, 8192);
-
-
-    string str(MESSAGE_P);
-
-    return MESSAGE_P;	  
+	FRAME frame;
+    assert (fd >= 0);
+    memset( (char *) &frame, 0, sizeof(frame) );
+    len= read (fd, (char *) &frame, sizeof(frame));
+    if (len != sizeof(frame))
+        error("Received frame has wrong length.\n");
+    return frame;  
 }
 
 
