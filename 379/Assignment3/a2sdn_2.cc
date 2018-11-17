@@ -68,6 +68,7 @@ void set_cpu_time();
 string convert_int_to_string(int input);
 void error(const char *msg);
 void RemoveSpaces(char* source);
+string controller_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADD_C);
 
 
 
@@ -95,24 +96,14 @@ void controller(int n_swithes, int portNumber){
     listen(sockfd,n_swithes);						 // start to listen incoming connection
 
 
+	// memorization declartion
 	int newsockfd_list[8] = {0,0,0,0,0,0,0,0};
 
-	int OPEN = 0;
-	int ACK  = 0;
-	int QUERY= 0;
-	int ADD  = 0;
 
-
-    string OPEN_s = convert_int_to_string(OPEN);
-	string ACK_s = convert_int_to_string(ACK);
-	string QUERY_s = convert_int_to_string(QUERY);
-	string ADD_s = convert_int_to_string(ADD);
-	string general_info_1 = "Packet Stats:\n \t Recived:  OPEN:"+ OPEN_s +" QUERY:" +QUERY_s+"\n";
-	string general_info_2 = "\t Transmitted:  ACK:"+ACK_s+" ADD:"+ADD_s;
-	string general_info = general_info_1 + general_info_2;
-
-
-
+	int OPEN_C  = 0;
+	int ACK_C   = 0;
+	int QUERY_C = 0;
+	int ADD_C   = 0;
 
 	// poll setup
 	struct pollfd polls[7];
@@ -152,8 +143,10 @@ void controller(int n_swithes, int portNumber){
 						read(polls[i].fd,buffer,10);
 						RemoveSpaces(buffer);
 						if (strcmp(buffer,"list")==10){							// why it is 10? 
-							cout << "list command" << endl;
+							// cout << "list command" << endl;
 							// print all the crap ;)...
+							string general_info = controller_stats(OPEN_C,ACK_C,QUERY_C,ADD_C);
+							cout << general_info << endl;
 
 						}
 						else if (strcmp(buffer,"exit") == 10){
@@ -173,7 +166,7 @@ void controller(int n_swithes, int portNumber){
 
 						newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
 						if (newsockfd < 0) { error("ERROR on accept"); }  // error checking for accept
-						char *buffer = new char[20];
+						
 						
 						// using array to store the newsockfd for all switches!
 						// write back to that newsockfd corresponding to the switches.
@@ -185,23 +178,71 @@ void controller(int n_swithes, int portNumber){
 						MSG msg;
 						memset( (char *) &frame, 0, sizeof(frame) );
 						frame = rcvFrame(newsockfd);
-						cout << "KINDNAME[frame.kind]" << KINDNAME[frame.kind] << endl;
 						msg = frame.msg;
-						cout << "msg.switch_no" << msg.switch_no << endl;
+						// cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
+						if (strcmp(KINDNAME[frame.kind],"OPEN") == 0){
+							int n;
+							cout << "Received (src= "<< msg.switch_no << ", dest= cont) [OPEN]:" << endl;
+							string port1;
+							string port2;
+							if (msg.port1 == -1){ port1 = "null";} else {stringstream ss; ss << msg.port1; port1 = "sw" + ss.str();}
+							if (msg.port2 == -1){ port1 = "null";} else {stringstream ss2; ss2 << msg.port2; port2 = "sw" + ss2.str();} 
+							cout << "\t" << "(port0= cont, port1= " << port1 << ", port2= " << port2 <<", port3= "<< msg.port3 << ")" << endl;
+							
+							string switch_no_string;
+							stringstream ss_switch;
+							ss_switch << msg.switch_no;
+							switch_no_string = "["+ss_switch.str()+"]";
+							if (msg.port1 == -1) {stringstream ss_p1; ss_p1 << msg.port1; port1 = ss_p1.str();}
+							if (msg.port2 == -1) {stringstream ss_p2; ss_p2 << msg.port2; port2 = ss_p2.str();}
+							string port3(msg.port3);
+							string switch_info = switch_no_string + "port1= " + port1 + "port2= " + port2 + "port3= " + port3;
+							OPEN_C++;
 
+							// MSG ack_msg;
+							// ack_msg = composeMSTR(input,port1,port2,arg[5]);
+							// n = sendFrame(newsockfd,ACK,&ack_msg);
+							write_i = write(newsockfd,"ACK",10); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
+							if (write_i < 0) {
+								error("ERROR writing to socket");
+							}
+							else { 
+								cout << "Transmitted (src= cont, dest="<< msg.switch_no<< ") [ACK]" << endl;
+								ACK_C++;
+							}
+						}else if (strcmp(KINDNAME[frame.kind],"QUERY") == 0){
+
+
+
+
+
+
+							continue;
+						}else{
+							cout << "Unrecognized request!" << endl;
+							continue;
+						}
+						
+						
+						// cout << "msg.switch_no: " << msg.switch_no << endl;
+						// cout << "msg.port1: " << msg.port1 << endl; 
+						// cout << "msg.port2: " << msg.port2 << endl; 
+						// cout << "msg.port3: " << msg.port3 << endl; 
 						// read_i = read(newsockfd,buffer,255); 				  // read the newsockfd; not the sockfd
 
-						int switch_number;
-						sscanf(buffer,"sw%d",&switch_number);
-						cout << switch_number << endl;
-						newsockfd_list[switch_number] = newsockfd;
-						if (read_i < 0) error("ERROR reading from socket");	  // error checking for read error;
+						// int switch_number;
+						// char *buffer = new char[20];
+						// strcpy(buffer,msg.switch_no);
+						// sscanf(buffer,"sw%d",&switch_number);
+						// cout << "switch_number: " << switch_number << endl;
+						// newsockfd_list[switch_number] = newsockfd;
+						// if (read_i < 0) error("ERROR reading from socket");	  // error checking for read error;
 						
 						
-						write_i = write(newsockfd,"I got your message",18); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
-						if (write_i < 0) error("ERROR writing to socket");	
-						printf("Here is the message: %s\n",buffer);
-						// cout  << "ACCEPTING CONNECTION ... " << endl;
+						// write_i = write(newsockfd,"I got your message",18); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
+						// if (write_i < 0) error("ERROR writing to socket");	
+						// // printf("Here is the message: %s\n",buffer);
+						// // cout  << "ACCEPTING CONNECTION ... " << endl;
 
 					}
 
@@ -233,49 +274,9 @@ void controller(int n_swithes, int portNumber){
 // when the switch is down, the connection lost signal needs to be sent to controller 
 void switches(char **arg, const string &input, char *serverAddress, int portNumber){
 	
-	// // sockfd is standard, which is always direct to controller's fd
-	// // see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
-	// int sockfd,n;
-	// struct sockaddr_in server_obj;
-	// struct hostent *server;
-	// sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
-	// if (sockfd < 0) { error("ERROR opening socket"); }
-	// server = gethostbyname(serverAddress);
-	// // struct hostent {
-    // //     char   *h_name;
-    // //     char  **h_aliases;
-    // //     int     h_addrtype;
-    // //     int     h_length;
-    // //     char  **h_addr_list; 
-    // // }
-	// if (server == NULL) { 
-	// 	cout << "Can't read the server address! " << endl;		// error check the server
-    //     exit(0);
-    // }
-
-	// bzero((char *) &server_obj, sizeof(server_obj));
-	// server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
-	// bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
-	// server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
-
-	// if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
-
-	// char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
-	// strcpy(buffer,"Connect to you!");
-	// n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send 
-	// if (n < 0) { error("ERROR writing to socket"); }
-
-
-
-
-
-
-
-
-
-	// parse the packet file
-	// and follow the rules to prepare the msg send to controller;
-	// controller will either tell switch to drop the packet for send the packet to nearby switches
+	
+	
+	
 	int    port1;
 	int    port2;
 	char  *port3;
@@ -298,8 +299,10 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int FORWARD  = 0;
 
 	int num_of_rules = 1;   				// initialize number of rules
- 
-	//determine the fifo number
+	
+
+	//	PARSE THE ARUGMENT:
+	//determine the fifo number	
 	int fifo_n;
 	char const * tmp_input = input.c_str();
 	sscanf(tmp_input, "sw%d", &fifo_n);	
@@ -311,10 +314,46 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	// cout << arg[3] << endl; // port 1
 	// cout << arg[4] << endl; // port 2
 	// cout << arg[5] << endl; // port 3 100-110
-	
-
 	if(strcmp(arg[3],"null") == 0){ port1 = -1;} else {int n;sscanf(arg[3], "sw%d", &n);port1 = n;}
 	if(strcmp(arg[4],"null") == 0){ port2 = -1;} else {int n;sscanf(arg[4], "sw%d", &n);port2 = n;}
+	
+
+	// SOCKET DECLARATIION
+	// sockfd is standard, which is always represent controller's fd
+	// see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
+	int sockfd,n;
+	struct sockaddr_in server_obj;
+	struct hostent *server;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
+	if (sockfd < 0) { error("ERROR opening socket"); }
+	server = gethostbyname(serverAddress);
+	// struct hostent {
+    //     char   *h_name;
+    //     char  **h_aliases;
+    //     int     h_addrtype;
+    //     int     h_length;
+    //     char  **h_addr_list; 
+    // }
+	if (server == NULL) { 
+		cout << "Can't read the server address! " << endl;		// error check the server
+        exit(0);
+    }
+
+	bzero((char *) &server_obj, sizeof(server_obj));
+	server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
+	bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
+	server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
+
+	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
+
+	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
+	strcpy(buffer,tmp_input);
+	MSG msg;
+	msg = composeMSTR(input,port1,port2,arg[5]);
+	n = sendFrame(sockfd,OPEN,&msg);
+	// should write the info from parsing the packet file
+	if (n < 0) { error("ERROR writing to socket"); }
+	
 	
 
 	// if declare DEST_PORT_LOW, DEST_PORT_HIGH at this point, the number for them will be changed later on;
@@ -479,24 +518,11 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
     //     }
 
     // }
-	// cout << ADDRULE << endl;
+
 	// myfile.close();
 	// exit(0);
 	
 
-	// MSG send_msg;
-	// char kind[10] = "ACK";
-	// string rvc_msg;
-	// // send msg to controller;
-	// // cout << fifo_number << endl;	
-	// send_msg = composeMSTR(input,port1,port2,port3,kind);
-
-	// sendFrame(fifo_1_0,&send_msg);
-	// cout << "before get msg switches" << endl;
-	// rvc_msg = rcvFrame(fifo_number); 
-	// cout << "recived from controller: " << rvc_msg << endl;
-	// OPEN++;
-	// ACK++;
 
 
 	// prepare the print for list command 
@@ -525,44 +551,6 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	string general_info_1 = "Packet Stats: \n \t Recived: ADMIT:" + ADMIT_s + ", ACK: " + ACK_s + ", ADDRULE: " + ADDRULE_s + ", RELAYIN: "+ RELAYIN_s +"\n";
 	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
 	string general_info = general_info_1 + general_info_2;
-
-
-	// sockfd is standard, which is always direct to controller's fd
-	// see "(connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0)"
-	int sockfd,n;
-	struct sockaddr_in server_obj;
-	struct hostent *server;
-	sockfd = socket(AF_INET, SOCK_STREAM, 0); 					// define the socket
-	if (sockfd < 0) { error("ERROR opening socket"); }
-	server = gethostbyname(serverAddress);
-	// struct hostent {
-    //     char   *h_name;
-    //     char  **h_aliases;
-    //     int     h_addrtype;
-    //     int     h_length;
-    //     char  **h_addr_list; 
-    // }
-	if (server == NULL) { 
-		cout << "Can't read the server address! " << endl;		// error check the server
-        exit(0);
-    }
-
-	bzero((char *) &server_obj, sizeof(server_obj));
-	server_obj.sin_family = AF_INET;						    //define sin_family as AF_INET/IPv4
-	bcopy((char *)server->h_addr, (char *)&server_obj.sin_addr.s_addr, server->h_length);
-	server_obj.sin_port = htons(portNumber); 					// define sin_port by given port use function htons()
-
-	if (connect(sockfd,(struct sockaddr *) &server_obj,sizeof(server_obj)) < 0) { error("ERROR connecting"); }
-
-	char *buffer = new char[256];   							// set all buffer byte to zero; initialize buffer 
-	strcpy(buffer,tmp_input);
-	MSG msg;
-	msg = composeMSTR(input,port1,port2,arg[5]);
-	n = sendFrame(sockfd,OPEN,&msg);
-
-	// n = write(sockfd,buffer,strlen(buffer)); 					// write to the socket sockfd and send
-																// should write the info from parsing the packet file
-	if (n < 0) { error("ERROR writing to socket"); }
 
 	// prepare fifo msg and send at this point
 	// if there is any msg for port1 and port2; prepare it no matter what controller tell me 
@@ -628,6 +616,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						char *buffer = new char[255];
 						read_i = read(sockfd,buffer,255);  							// read back from socket sockfd 
 						if (read_i < 0) {error("ERROR reading from socket");}
+						if (read_i == 0){cout << "Server closed. Exiting..." << endl;exit(0);}
     					printf("%s\n",buffer);
 
 						// cout  << "ACCEPTING CONNECTION ... " << endl;
@@ -640,6 +629,8 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 				}
 				else{
+					
+					
 					continue;
 				}
 				// end of for loop
@@ -788,6 +779,17 @@ string convert_int_to_string(int input){
 	return s;
 }
 
+string controller_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADD_C){
+	string OPEN_s = convert_int_to_string(OPEN_C);
+	string ACK_s = convert_int_to_string(ACK_C);
+	string QUERY_s = convert_int_to_string(QUERY_C);
+	string ADD_s = convert_int_to_string(ADD_C);
+	string general_info_1 = "Packet Stats:\n \t Recived:  OPEN: "+ OPEN_s +" QUERY: " +QUERY_s+"\n";
+	string general_info_2 = "\t Transmitted:  ACK: "+ACK_s+" ADD: "+ADD_s;
+	string general_info = general_info_1 + general_info_2;
+	return general_info;
+}
+
 void set_cpu_time(){
 	struct rlimit limit;
 	getrlimit(RLIMIT_CPU,&limit);
@@ -848,7 +850,7 @@ int main(int argc, char** argv)
 
 			
 		set_cpu_time();
-		cout << "num_of_switches: " << n_swithes << "; port number: " << portNumber << endl;
+		// cout << "num_of_switches: " << n_swithes << "; port number: " << portNumber << endl;
 		controller(n_swithes,portNumber);
 	}
 	
