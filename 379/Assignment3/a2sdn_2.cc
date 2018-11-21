@@ -69,6 +69,7 @@ string convert_int_to_string(int input);
 void error(const char *msg);
 void RemoveSpaces(char* source);
 string controller_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADD_C);
+string switch_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADMIT_C, int RELAYOUT_C, int RELAYIN_C, int ADDRULE_C);
 
 
 
@@ -343,14 +344,14 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int pkgCount = 0;
 	int original_pkgCount= 0;				// for counting the orignal rule's package
 
-	int ADMIT    = 0;
+	int ADMIT_C    = 0;
 	int OPEN_C     = 0;
-	int ACK      = 0;
+	int ACK_C      = 0;
 	int QUERY_C    = 0;   // send to controller the query
-	int ADDRULE  = 0;   // 
-	int RELAYOUT = 0;
-	int RELAYIN  = 0;
-	int FORWARD  = 0;
+	int ADDRULE_C  = 0;   // 
+	int RELAYOUT_C = 0;
+	int RELAYIN_C  = 0;
+	int FORWARD_C  = 0;
 
 	int num_of_rules = 1;   				// initialize number of rules
 	
@@ -432,14 +433,18 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	string str(port3);
 	num_of_rules = 1;
 	string list_command[num_of_rules];
+	// string first_rule = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= FORWARD: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
+	// list_command[1] = first_rule;
+
+
 	// switch information
-	for (int i=0; i< num_of_rules; i++){
-		string i_s = convert_int_to_string(i);
-		string pkgCount_s = convert_int_to_string(pkgCount);
-		string DELIVER_s  = convert_int_to_string(DELIVER);
-		string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
-		list_command[i] = single_command;
-	}
+	// for (int i=0; i< num_of_rules; i++){
+	// 	string i_s = convert_int_to_string(i);
+	// 	string pkgCount_s = convert_int_to_string(pkgCount);
+	// 	string DELIVER_s  = convert_int_to_string(DELIVER);
+	// 	string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
+	// 	list_command[i] = single_command;
+	// }
 
 
 	// prepare fifo msg and send at this point
@@ -516,9 +521,10 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
         					// within the range;
 							// Don't do anything except incrementing numbers
-							ADMIT++;
-							FORWARD++;							// for switch list
+							ADMIT_C++;
+							FORWARD_C++;							// for switch list
 							pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
+							original_pkgCount++;
 
 
         				}else{
@@ -592,13 +598,14 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 								}
 
 								strcpy(rules[num_of_rules],ranges);					// keep track of current rules
-
+								// list_command[num_of_rules] = 
 							
 								// cout << rules[0] << endl;
 								num_of_rules++;
-								ADDRULE++;
+								ADDRULE_C++;
 								QUERY_C++;
 							}
+							pkgCount++;
 							// exit(0);
 						
 
@@ -618,12 +625,12 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 					}
         		}
 			}
-			// else{
-			
-			// 	continue;
-			// }
 		}
-		
+		// first rule is special since it is the original rules
+		string original_pkgCount_s = convert_int_to_string(original_pkgCount);
+		string pkgCount_s = convert_int_to_string(pkgCount);
+		string first_rule = "[0](srcIP= 0-1000, destIP= "+ port3 +", action= FORWARD: "+ original_pkgCount_s + " pri= 4, pkgCount= " + pkgCount_s + ")";
+		list_command[1] = first_rule;
 		// poll setup
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
 
@@ -645,7 +652,15 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						cout << "stdin: " << buffer << endl;
 						RemoveSpaces(buffer);
 						if (strcmp(buffer,"list")==10){							// why it is 10? 
-							cout << "list command" << endl;
+							for (int n_rule=1; n_rule< num_of_rules; n_rule++){
+								string i_s = convert_int_to_string(i);
+								string pkgCount_s = convert_int_to_string(pkgCount);
+								string DELIVER_s  = convert_int_to_string(DELIVER);
+								string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
+								list_command[n_rule] = single_command;
+							}
+							string switch_stats_info = switch_stats(OPEN_C,ACK_C,QUERY_C,ADMIT_C,RELAYOUT_C,RELAYIN_C,ADDRULE_C);
+							cout << switch_stats_info << endl;
 							// print all the crap ;)...
 
 						}
