@@ -98,6 +98,8 @@ void controller(int n_swithes, int portNumber){
 
 	// memorization declartion
 	int newsockfd_list[8] = {0,0,0,0,0,0,0,0};
+	// memorize the switches's ip address
+	char newsockfd_list_ip[8][10] = {"null","null","null","null","null","null","null","null"};
 
 
 	int OPEN_C  = 0;
@@ -180,8 +182,19 @@ void controller(int n_swithes, int portNumber){
 						memset( (char *) &frame, 0, sizeof(frame) );
 						frame = rcvFrame(newsockfd);
 						msg = frame.msg;
+
+						int switch_number;
+						char *switch_number_buffer = new char[20];
+						strcpy(switch_number_buffer,msg.switch_no);
+						sscanf(switch_number_buffer,"sw%d",&switch_number);
+
 						// cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
 						if (strcmp(KINDNAME[frame.kind],"OPEN") == 0){
+							// append to tracking list first
+							newsockfd_list[switch_number] = newsockfd;
+							strcpy(newsockfd_list_ip[switch_number],msg.port3);
+							// append to tracking list first
+
 							int n;
 							cout << "Received (src= "<< msg.switch_no << ", dest= cont) [OPEN]:" << endl;
 							string port1;
@@ -200,8 +213,15 @@ void controller(int n_swithes, int portNumber){
 							string switch_info = switch_no_string + "port1= " + port1 + "port2= " + port2 + "port3= " + port3;
 							OPEN_C++;
 
+							// for ack msg, there is no much for input
+							// MSG composeMSTR (const string &a,  int port1,  int port2, char *port3);
 							// MSG ack_msg;
-							// ack_msg = composeMSTR(input,port1,port2,arg[5]);
+							// string dump_input = "null";
+							// int dump_port1 = 0;
+							// int dump_port2 = 0;
+							// char *dump_port3 = new char[10];
+							// strcpy(dump_port3,"null")  
+							// ack_msg = composeMSTR(dump_input,dump_port1,dump_port2,dump_port3);
 							// n = sendFrame(newsockfd,ACK,&ack_msg);
 							write_i = write(newsockfd,"ACK",10); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
 							if (write_i < 0) {
@@ -212,13 +232,46 @@ void controller(int n_swithes, int portNumber){
 								ACK_C++;
 							}
 						}else if (strcmp(KINDNAME[frame.kind],"QUERY") == 0){
+							int n;
+							int src_ip, dest_ip;
+							sscanf(msg.port3,"%d-%d",&src_ip,&dest_ip);
+							cout << "Received (src= "<< msg.switch_no << ", dest= cont) [QUERY]:" << "header= (srcIP= " << src_ip << ", dest= " << dest_ip << " )" << endl;
 
+							// check out the switches available; 
+							// if the range is sendable; compose the msg with FORWARD
+							// else compose the msg with DROP
+							int drop_query = 1;
+							for(int current_switch=1; current_switch < 8; current_switch++){
+								int switch_dest_ip_low, switch_dest_ip_high;
+								int switch_fd;
+								sscanf(newsockfd_list_ip[current_switch],"%d-%d",&switch_dest_ip_low,&switch_dest_ip_high);
+								
+								if (dest_ip >= switch_dest_ip_low && dest_ip <= switch_dest_ip_high){
+									if(current_switch != switch_number){
+										switch_fd = newsockfd_list[current_switch];
+										// find the corresponding switch, send the msg with forward;
+										int num_forward = 1;
+										cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
+										cout << "\t(srcIP= 0-1000, destIP= " << newsockfd_list_ip[current_switch] << " action= FORWARD:" << num_forward << ", pri= 4, pktCount= 0" << endl;
+										drop_query = 0;
+									}
+									
+								}
+								 
+							}
+							if(drop_query){
+								int num_drop = 0;
+								cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
+								cout << "\t(srcIP= 0-1000, destIP= " << dest_ip <<"-"<< dest_ip << " action= DROP:" << num_drop << ", pri= 4, pktCount= 0" << endl;
+							}
+							// Transmitted (src= cont, dest= sw2) [ADD]:
+	 						// 	(srcIP= 0-1000, destIP= 100-110, action= FORWARD:1, pri= 4, pktCount= 0)
+							// note: after switch get the add, then immeadiately send msg to other switches
+							// string port3(msg.port3);
 
+							
+							
 
-
-
-
-							continue;
 						}else{
 							cout << "Unrecognized request!" << endl;
 							continue;
@@ -376,19 +429,6 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	strcpy(rules[0],arg[5]);
 	// cout << "rules[0] " << rules[0] << endl;
 	
-	// //parse String
-	// ifstream myfile;
-	// string STRING;
-	// myfile.open(arg[2]);
-
-
-	// strcpy(port3,arg[5]);
-	// int DEST_PORT_LOW, DEST_PORT_HIGH;
-	// sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
-
-	// prepare the print for list command 
-	// string srcIP = "0-1000";
-	// predefine num_of_rules as 1
 	string str(port3);
 	num_of_rules = 1;
 	string list_command[num_of_rules];
@@ -446,6 +486,13 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int DEST_PORT_LOW, DEST_PORT_HIGH;
 	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
 
+
+	// query msg example: need's header field
+	// only pass the header msg such as the scrIP and destIP;
+	// Transmitted (src= sw1, dest= cont) [QUERY]:  header= (srcIP= 100, destIP= 200)
+	// Received (src= cont, dest= sw1) [ADD]:
+	//  	(srcIP= 0-1000, destIP= 200-210, action= FORWARD:2, pri= 4, pktCount= 0)
+
 	while(1){
 		string STRING;
 		// parse the file here
@@ -453,7 +500,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 			getline(myfile,STRING); // Saves the line in STRING.
 
 			if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
-				cout << STRING << endl;
+				// cout << STRING << endl;
 				// split string here:
 				char delimiter[1];
 				strcpy(delimiter," ");
@@ -479,8 +526,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						// cout << "===========" << endl;
 						if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
         					// within the range;
-							// cout << src_port << " and " << dest_port << endl;
-							// package_count[0] = package_count[0]+1;
+							// Don't do anything except incrementing numbers
 							ADMIT++;
 							FORWARD++;							// for switch list
 							pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
@@ -489,6 +535,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
         				}else{
 							// for new rule, all I need to know is the destination port (splited_str[2])
 							// for print out, if new rule is 701 then it will look like 701-701
+							// and send to controller
 							char *ranges = new char[10];
 							strcat(ranges,splited_str[2]);
 							strcat(ranges,"-");
@@ -496,9 +543,9 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 							// cout << ranges << endl;
 						
 							int new_rule = 0;
-							cout << "" << endl;
-							cout << STRING << endl;
-							cout << "===========" << endl;
+							// cout << "" << endl;
+							// cout << STRING << endl;
+							// cout << "===========" << endl;
 							for(int i=0;i<num_of_rules;i++){
 								char *current_rules = new char[20];
 								strcpy(current_rules,rules[i]);
@@ -540,14 +587,23 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 							
 							}
 
-
+							// if new_rule, send to controller for next step
+							// Transmitted (src= sw1, dest= cont) [QUERY]:  header= (srcIP= 100, destIP= 200)
+							// Received (src= cont, dest= sw1) [ADD]:
+	 						// (srcIP= 0-1000, destIP= 200-210, action= FORWARD:2, pri= 4, pktCount= 0)
 							if(new_rule){
-							
-								// cout << "ranges " <<ranges << endl;
-								// cout << "num_of_rules "<<num_of_rules << endl; 
-								strcpy(rules[num_of_rules],ranges);
-								// cout << ranges << endl;
-								// *package_count[num_of_rules+1] = 1;
+								int n_new_rule;
+								MSG new_rule_msg;
+								msg = composeMSTR(input,port1,port2,arg[5]);
+								n_new_rule = sendFrame(sockfd,OPEN,&msg);
+								if (n_new_rule < 0){
+									error("Sending frame error.");
+								}else{
+									cout << "Transmitted (src= " << first_arg << ", dest= cont) [QUERY]:  header= (srcIP= " << 100 <<", destIP= " << 200 <<")" << endl;
+								}
+
+								strcpy(rules[num_of_rules],ranges);					// keep track of current rules
+
 							
 								// cout << rules[0] << endl;
 								num_of_rules++;
@@ -573,10 +629,10 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 					}
         		}
 			}
-			else{
+			// else{
 			
-				continue;
-			}
+			// 	continue;
+			// }
 		}
 		
 		// poll setup
