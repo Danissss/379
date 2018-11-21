@@ -261,7 +261,7 @@ void controller(int n_swithes, int portNumber){
 							}
 							if(drop_query){
 								int num_drop = 0;
-								cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
+								cout << "Transmitted (src= cont, dest= sw" << switch_number << ")[ADD]" << endl;
 								cout << "\t(srcIP= 0-1000, destIP= " << dest_ip <<"-"<< dest_ip << " action= DROP:" << num_drop << ", pri= 4, pktCount= 0" << endl;
 							}
 							// Transmitted (src= cont, dest= sw2) [ADD]:
@@ -346,7 +346,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	int ADMIT    = 0;
 	int OPEN_C     = 0;
 	int ACK      = 0;
-	int QUERY    = 0;   // send to controller the query
+	int QUERY_C    = 0;   // send to controller the query
 	int ADDRULE  = 0;   // 
 	int RELAYOUT = 0;
 	int RELAYIN  = 0;
@@ -441,17 +441,6 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 		list_command[i] = single_command;
 	}
 
-	// general information (total)
-	string ADMIT_s    = convert_int_to_string(ADMIT);
-	string ACK_s      = convert_int_to_string(ACK);
-	string ADDRULE_s  = convert_int_to_string(ADDRULE);
-	string RELAYIN_s  = convert_int_to_string(RELAYIN);
-	string OPEN_s     = convert_int_to_string(OPEN);
-	string QUERY_s    = convert_int_to_string(QUERY);
-	string RELAYOUT_s = convert_int_to_string(RELAYOUT);
-	string general_info_1 = "Packet Stats: \n \t Recived: ADMIT:" + ADMIT_s + ", ACK: " + ACK_s + ", ADDRULE: " + ADDRULE_s + ", RELAYIN: "+ RELAYIN_s +"\n";
-	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
-	string general_info = general_info_1 + general_info_2;
 
 	// prepare fifo msg and send at this point
 	// if there is any msg for port1 and port2; prepare it no matter what controller tell me 
@@ -542,7 +531,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 							strcat(ranges,splited_str[2]);
 							// cout << ranges << endl;
 						
-							int new_rule = 0;
+							int new_rule = 1;
 							// cout << "" << endl;
 							// cout << STRING << endl;
 							// cout << "===========" << endl;
@@ -561,13 +550,13 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 									// cout << "cur_count" << cur_count << endl;
 									package_count[i] = cur_count+1;
 									// cout <<package_count[i] <<endl;
-									break;
+									new_rule = 0;
 								
 								}
 								// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
 								// otherwise, it will break from this for loop before head
 								// cout << "new_rule_______________" << endl;
-								new_rule = 1;
+								// new_rule = 1;
 								// sw1  100  200
 								// ===========
 								// current_rules100-110
@@ -595,11 +584,11 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 								int n_new_rule;
 								MSG new_rule_msg;
 								msg = composeMSTR(input,port1,port2,arg[5]);
-								n_new_rule = sendFrame(sockfd,OPEN,&msg);
+								n_new_rule = sendFrame(sockfd,QUERY,&msg);
 								if (n_new_rule < 0){
 									error("Sending frame error.");
 								}else{
-									cout << "Transmitted (src= " << first_arg << ", dest= cont) [QUERY]:  header= (srcIP= " << 100 <<", destIP= " << 200 <<")" << endl;
+									cout << "Transmitted (src= " << first_arg << ", dest= cont) [QUERY]:  header= (srcIP= " << src_port <<", destIP= " << dest_port <<")" << endl;
 								}
 
 								strcpy(rules[num_of_rules],ranges);					// keep track of current rules
@@ -608,7 +597,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 								// cout << rules[0] << endl;
 								num_of_rules++;
 								ADDRULE++;
-								QUERY++;
+								QUERY_C++;
 							}
 							// exit(0);
 						
@@ -848,6 +837,21 @@ string controller_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADD_C){
 	return general_info;
 }
 
+string switch_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADMIT_C, int RELAYOUT_C, int RELAYIN_C, int ADDRULE_C){
+	// general information (total)
+	string ADMIT_s    = convert_int_to_string(ADMIT_C);
+	string ACK_s      = convert_int_to_string(ACK_C);
+	string ADDRULE_s  = convert_int_to_string(ADDRULE_C);
+	string RELAYIN_s  = convert_int_to_string(RELAYIN_C);
+	string OPEN_s     = convert_int_to_string(OPEN_C);
+	string QUERY_s    = convert_int_to_string(QUERY_C);
+	string RELAYOUT_s = convert_int_to_string(RELAYOUT_C);
+	string general_info_1 = "Packet Stats: \n \t Recived: ADMIT:" + ADMIT_s + ", ACK: " + ACK_s + ", ADDRULE: " + ADDRULE_s + ", RELAYIN: "+ RELAYIN_s +"\n";
+	string general_info_2 = "\t Recived: OPEN:" + OPEN_s + ", QUERY: " + QUERY_s + ", RELAYOUT: " + RELAYOUT_s + "\n";
+	string general_info = general_info_1 + general_info_2;
+
+	return general_info;
+}
 void set_cpu_time(){
 	struct rlimit limit;
 	getrlimit(RLIMIT_CPU,&limit);
