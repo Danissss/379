@@ -120,6 +120,7 @@ void controller(int n_swithes, int portNumber){
 
 	while(1){
 		
+		
 
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
 		rc_msg = poll(polls, 7, 0);
@@ -375,155 +376,15 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	strcpy(rules[0],arg[5]);
 	// cout << "rules[0] " << rules[0] << endl;
 	
-	//parse String
-	ifstream myfile;
-	string STRING;
-	myfile.open(arg[2]);
+	// //parse String
+	// ifstream myfile;
+	// string STRING;
+	// myfile.open(arg[2]);
 
 
-	strcpy(port3,arg[5]);
-	int DEST_PORT_LOW, DEST_PORT_HIGH;
-	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
-	
-	// while(!myfile.eof()) // To get you all the lines.
-	// {
-    //     getline(myfile,STRING); // Saves the line in STRING.
-	// 	int file_lines = 0;
-    //     if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
-	// 		// split string here:
-	// 		char delimiter[1];
-	// 		strcpy(delimiter," ");
-	// 		char * tab2 = new char [STRING.length()+1];
-	// 		strcpy (tab2, STRING.c_str());
-	// 		char splited_str[MAXLINE][MAXWORD];
-	// 		split(tab2,splited_str,delimiter);
-	// 		// cout << splited_str[0] << endl;  // sw1
-	// 		// cout << splited_str[1] << endl;  // 100
-	// 		// cout << splited_str[2] << endl;  // 102
-	// 		string first_arg(splited_str[0]);
-			
-    //     	if(first_arg.compare(input)==0){
-	// 			// ignores the line for other switches;s
-	// 			// same swith number; parse the line; file_line increments by one at the end of the if;
-				
-
-	// 			int src_port, dest_port, delay_time;
-	// 			if (strcmp(splited_str[1],"delay")!=0){
-	// 				src_port = atoi(splited_str[1]);
-	// 				dest_port = atoi(splited_str[2]);
-	// 				// cout << DEST_PORT_LOW << " and " << DEST_PORT_HIGH << endl; //12337 and 825045040 will happened if declare the stuff very top;
-	// 				// cout << "===========" << endl;
-	// 				if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
-    //     				// within the range;
-	// 					// cout << src_port << " and " << dest_port << endl;
-	// 					// package_count[0] = package_count[0]+1;
-	// 					ADMIT++;
-	// 					FORWARD++;							// for switch list
-	// 					pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
-
-
-    //     			}else{
-	// 					// for new rule, all I need to know is the destination port (splited_str[2])
-	// 					// for print out, if new rule is 701 then it will look like 701-701
-	// 					char *ranges = new char[10];
-	// 					strcat(ranges,splited_str[2]);
-	// 					strcat(ranges,"-");
-	// 					strcat(ranges,splited_str[2]);
-	// 					// cout << ranges << endl;
-						
-	// 					int new_rule = 0;
-	// 					cout << "" << endl;
-	// 					cout << STRING << endl;
-	// 					cout << "===========" << endl;
-	// 					for(int i=0;i<num_of_rules;i++){
-	// 						char *current_rules = new char[20];
-	// 						strcpy(current_rules,rules[i]);
-	// 						// cout << *rules << endl;
-	// 						cout << "current_rules" << current_rules << endl;
-	// 						int current_rules_scr_port, current_rules_dest_port;
-	// 						sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
-	// 						// cout << "dest_port" << dest_port << endl;
-	// 						cout << current_rules_dest_port << " and " << dest_port << endl;
-	// 						if (dest_port == current_rules_dest_port){
-	// 							// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
-	// 							int cur_count;
-	// 							cur_count = package_count[i];
-	// 							// cout << "cur_count" << cur_count << endl;
-	// 							package_count[i] = cur_count+1;
-	// 							// cout <<package_count[i] <<endl;
-	// 							break;
-								
-	// 						}
-	// 						// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
-	// 						// otherwise, it will break from this for loop before head
-	// 						cout << "new_rule_______________" << endl;
-							
-
-	// 						new_rule = 1;
-	// 						// sw1  100  200
-	// 						// ===========
-	// 						// current_rules100-110
-	// 						// 110 and 200
-	// 						// new_rule_______________
-
-	// 						// sw1  100  200
-	// 						// ===========
-	// 						// current_rules100-110					// bug info
-	// 						// 110 and 200							// atthis point, even when dest_port != current_rules_dest_port
-	// 																// the new_rule is still mark as one
-	// 						// new_rule_______________
-	// 						// current_rules200-200
-	// 						// 200 and 200
-
-	// 						// cout << new_rule << endl;
-							
-	// 					}
-
-
-	// 					if(new_rule){
-							
-	// 						// cout << "ranges " <<ranges << endl;
-	// 						// cout << "num_of_rules "<<num_of_rules << endl; 
-	// 						strcpy(rules[num_of_rules],ranges);
-	// 						// cout << ranges << endl;
-	// 						// *package_count[num_of_rules+1] = 1;
-							
-	// 						// cout << rules[0] << endl;
-	// 						num_of_rules++;
-	// 						ADDRULE++;
-	// 						QUERY++;
-	// 					}
-	// 					// exit(0);
-						
-
-	// 					// out of range, send to controller for next instruction;
-	// 					// if the range is already in the out_of_range list; then don't append the list
-	// 					// else, append a new list, number_of_rule++;
-    //     				// exit(0);
-        				
-    //     			}
-	// 				// cout << src_port << endl;
-	// 			}else{
-	// 				delay_time = atoi(splited_str[2]);
-					
-	// 				cout << "Entering a delay period for " << delay_time << " millisec" << endl;
-	// 				usleep(delay_time*1000);
-	// 				// cout << delay_time << endl;
-	// 			}
-
-
-
-	// 			file_lines++;
-    //     	}
-    //     }
-
-    // }
-
-	// myfile.close();
-	// exit(0);
-	
-
-
+	// strcpy(port3,arg[5]);
+	// int DEST_PORT_LOW, DEST_PORT_HIGH;
+	// sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
 
 	// prepare the print for list command 
 	// string srcIP = "0-1000";
@@ -575,9 +436,149 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	polls[3].fd = fifo_number_port2;
 	polls[3].events = POLLIN;
 
-	while(1){
-		
+	//parse String
+	ifstream myfile;
+	
+	myfile.open(arg[2]);
 
+
+	strcpy(port3,arg[5]);
+	int DEST_PORT_LOW, DEST_PORT_HIGH;
+	sscanf(port3,"%d-%d",&DEST_PORT_LOW,&DEST_PORT_HIGH);
+
+	while(1){
+		string STRING;
+		// parse the file here
+		if (!myfile.eof() || myfile.eof()){
+			getline(myfile,STRING); // Saves the line in STRING.
+
+			if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
+				cout << STRING << endl;
+				// split string here:
+				char delimiter[1];
+				strcpy(delimiter," ");
+				char * tab2 = new char [STRING.length()+1];
+				strcpy (tab2, STRING.c_str());
+				char splited_str[MAXLINE][MAXWORD];
+				split(tab2,splited_str,delimiter);
+				// cout << splited_str[0] << endl;  // sw1
+				// cout << splited_str[1] << endl;  // 100
+				// cout << splited_str[2] << endl;  // 102
+				string first_arg(splited_str[0]);
+				
+        		if(first_arg.compare(input)==0){
+				// ignores the line for other switches;s
+				// same swith number; parse the line; file_line increments by one at the end of the if;
+				
+
+					int src_port, dest_port, delay_time;
+					if (strcmp(splited_str[1],"delay")!=0){
+						src_port = atoi(splited_str[1]);
+						dest_port = atoi(splited_str[2]);
+						// cout << DEST_PORT_LOW << " and " << DEST_PORT_HIGH << endl; //12337 and 825045040 will happened if declare the stuff very top;
+						// cout << "===========" << endl;
+						if ((src_port >= S_LOW && src_port <= S_HIGH) && (dest_port >= DEST_PORT_LOW && dest_port <= DEST_PORT_HIGH)){
+        					// within the range;
+							// cout << src_port << " and " << dest_port << endl;
+							// package_count[0] = package_count[0]+1;
+							ADMIT++;
+							FORWARD++;							// for switch list
+							pkgCount++;							// pkgCount is only for counting the number of accepted pkg;
+
+
+        				}else{
+							// for new rule, all I need to know is the destination port (splited_str[2])
+							// for print out, if new rule is 701 then it will look like 701-701
+							char *ranges = new char[10];
+							strcat(ranges,splited_str[2]);
+							strcat(ranges,"-");
+							strcat(ranges,splited_str[2]);
+							// cout << ranges << endl;
+						
+							int new_rule = 0;
+							cout << "" << endl;
+							cout << STRING << endl;
+							cout << "===========" << endl;
+							for(int i=0;i<num_of_rules;i++){
+								char *current_rules = new char[20];
+								strcpy(current_rules,rules[i]);
+								// cout << "current_rules" << current_rules << endl;
+								int current_rules_scr_port, current_rules_dest_port;
+								sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
+								// cout << "dest_port" << dest_port << endl;
+								// cout << current_rules_dest_port << " and " << dest_port << endl;
+								if (dest_port == current_rules_dest_port){
+									// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
+									int cur_count;
+									cur_count = package_count[i];
+									// cout << "cur_count" << cur_count << endl;
+									package_count[i] = cur_count+1;
+									// cout <<package_count[i] <<endl;
+									break;
+								
+								}
+								// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
+								// otherwise, it will break from this for loop before head
+								// cout << "new_rule_______________" << endl;
+								new_rule = 1;
+								// sw1  100  200
+								// ===========
+								// current_rules100-110
+								// 110 and 200
+								// new_rule_______________
+
+								// sw1  100  200
+								// ===========
+								// current_rules100-110					// bug info
+								// 110 and 200							// atthis point, even when dest_port != current_rules_dest_port
+																	// the new_rule is still mark as one
+								// new_rule_______________
+								// current_rules200-200
+								// 200 and 200
+
+								// cout << new_rule << endl;
+							
+							}
+
+
+							if(new_rule){
+							
+								// cout << "ranges " <<ranges << endl;
+								// cout << "num_of_rules "<<num_of_rules << endl; 
+								strcpy(rules[num_of_rules],ranges);
+								// cout << ranges << endl;
+								// *package_count[num_of_rules+1] = 1;
+							
+								// cout << rules[0] << endl;
+								num_of_rules++;
+								ADDRULE++;
+								QUERY++;
+							}
+							// exit(0);
+						
+
+							// out of range, send to controller for next instruction;
+							// if the range is already in the out_of_range list; then don't append the list
+							// else, append a new list, number_of_rule++;
+        					// exit(0);
+        				
+        				}
+						// cout << src_port << endl;
+					}else{
+						delay_time = atoi(splited_str[2]);
+					
+						cout << "Entering a delay period for " << delay_time << " millisec" << endl;
+						usleep(delay_time*1000);
+						// cout << delay_time << endl;
+					}
+        		}
+			}
+			else{
+			
+				continue;
+			}
+		}
+		
 		// poll setup
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
 
@@ -604,6 +605,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 						}
 						else if (strcmp(buffer,"exit") == 10){
+							myfile.close();
 							exit(0);
 						}
 						else{
