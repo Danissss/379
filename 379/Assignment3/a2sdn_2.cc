@@ -97,11 +97,12 @@ void controller(int n_swithes, int portNumber){
     listen(sockfd,n_swithes);						 // start to listen incoming connection
 
 
+	// iterate below array always start from 1 since there is no switch0
 	// memorization declartion
 	int newsockfd_list[8] = {0,0,0,0,0,0,0,0};
 	// memorize the switches's ip address
-	char newsockfd_list_ip[8][10] = {"null","null","null","null","null","null","null","null"};
-
+	char newsockfd_list_ip_for_print[8][20] = {"null","null","null","null","null","null","null","null"};
+	char newsockfd_list_ip[8][20] = {"null","null","null","null","null","null","null","null"};
 
 	int OPEN_C  = 0;
 	int ACK_C   = 0;
@@ -149,6 +150,12 @@ void controller(int n_swithes, int portNumber){
 						if (strcmp(buffer,"list")==10){							// why it is 10? 
 							// cout << "list command" << endl;
 							// print all the crap ;)...
+							for (int n_sw=1;n_sw < 8; n_sw++){
+								if(strcmp(newsockfd_list_ip_for_print[n_sw],"null") != 0){
+									cout << newsockfd_list_ip_for_print[n_sw] << endl;
+								}
+							}
+							cout <<""<< endl;
 							string general_info = controller_stats(OPEN_C,ACK_C,QUERY_C,ADD_C);
 							cout << general_info << endl;
 
@@ -167,10 +174,16 @@ void controller(int n_swithes, int portNumber){
 					}else if(polls[i].fd == sockfd){
 						// At this point, there is already incoming message which is sockfd
 						int read_i, write_i;
-
+						//The accept() system call is used with connection-based socket types
+       					//(SOCK_STREAM, SOCK_SEQPACKET).  It extracts the first connection
+       					//request on the queue of pending connections for the listening socket,
+       					//sockfd, creates a new connected socket, and returns a new file
+       					//descriptor referring to that socket.  The newly created socket is not
+       					//in the listening state.  The original socket sockfd is unaffected by
+       					//this call.
 						newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
 						if (newsockfd < 0) { error("ERROR on accept"); }  // error checking for accept
-						
+						cout << "newsockfd: " << newsockfd << endl;
 						
 						// using array to store the newsockfd for all switches!
 						// write back to that newsockfd corresponding to the switches.
@@ -188,8 +201,9 @@ void controller(int n_swithes, int portNumber){
 						char *switch_number_buffer = new char[20];
 						strcpy(switch_number_buffer,msg.switch_no);
 						sscanf(switch_number_buffer,"sw%d",&switch_number);
-
-						// cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
+						// cout << KINDNAME[frame.kind] << ": " << strcmp(KINDNAME[frame.kind],"QUERY") << endl;
+					
+						cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
 						if (strcmp(KINDNAME[frame.kind],"OPEN") == 0){
 							// append to tracking list first
 							newsockfd_list[switch_number] = newsockfd;
@@ -211,9 +225,14 @@ void controller(int n_swithes, int portNumber){
 							if (msg.port1 == -1) {stringstream ss_p1; ss_p1 << msg.port1; port1 = ss_p1.str();}
 							if (msg.port2 == -1) {stringstream ss_p2; ss_p2 << msg.port2; port2 = ss_p2.str();}
 							string port3(msg.port3);
-							string switch_info = switch_no_string + "port1= " + port1 + "port2= " + port2 + "port3= " + port3;
+							string switch_info = switch_no_string + " port1= " + port1 + ", port2= " + port2 + ", port3= " + port3;
+							
 							OPEN_C++;
-
+							// store the msg to tracking list
+							strcpy(newsockfd_list_ip_for_print[OPEN_C],switch_info.c_str());
+							
+							
+							
 							// for ack msg, there is no much for input
 							// MSG composeMSTR (const string &a,  int port1,  int port2, char *port3);
 							// MSG ack_msg;
@@ -233,6 +252,9 @@ void controller(int n_swithes, int portNumber){
 								ACK_C++;
 							}
 						}else if (strcmp(KINDNAME[frame.kind],"QUERY") == 0){
+							QUERY_C++;
+							ADD_C++;
+
 							int n;
 							int src_ip, dest_ip;
 							sscanf(msg.port3,"%d-%d",&src_ip,&dest_ip);
@@ -408,6 +430,17 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	n = sendFrame(sockfd,OPEN,&msg);
 	// should write the info from parsing the packet file
 	if (n < 0) { error("ERROR writing to socket"); }
+	else{
+		//Transmitted (src= sw1, dest= cont) [OPEN]:
+	 		//(port0= cont, port1= null, port2= sw2, port3= 100-110)
+		// fifo_n = switch_number
+		string tmp_port1;
+		string tmp_port2;
+		if (port1 > 0){ tmp_port1 = "sw"+ convert_int_to_string(port1); } else { tmp_port1 = "null"; }
+		if (port2 > 0){ tmp_port2 = "sw"+ convert_int_to_string(port2); } else { tmp_port1 = "null"; }
+		cout << "Transmitted (src= sw"<< fifo_n <<", dest= cont) [OPEN]:" << endl;
+		cout << "\t(port0= cont, port1= " << tmp_port1 << ", port2= " << tmp_port2 << ", port3= " <<  arg[5] << ")" << endl;
+	}
 	
 	
 
@@ -492,7 +525,8 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 		// parse the file here
 		if (!myfile.eof() || myfile.eof()){
 			getline(myfile,STRING); // Saves the line in STRING.
-
+			int is_sleep = 0;
+			int sleep_time;
 			if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
 				// cout << STRING << endl;
 				// split string here:
@@ -513,6 +547,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 				
 
 					int src_port, dest_port, delay_time;
+					// cout << splited_str[1] << endl;
 					if (strcmp(splited_str[1],"delay")!=0){
 						src_port = atoi(splited_str[1]);
 						dest_port = atoi(splited_str[2]);
@@ -538,26 +573,20 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 							// cout << ranges << endl;
 						
 							int new_rule = 1;
-							// cout << "" << endl;
-							// cout << STRING << endl;
-							// cout << "===========" << endl;
 							for(int i=0;i<num_of_rules;i++){
 								char *current_rules = new char[20];
 								strcpy(current_rules,rules[i]);
 								// cout << "current_rules" << current_rules << endl;
 								int current_rules_scr_port, current_rules_dest_port;
 								sscanf(current_rules,"%d-%d",&current_rules_scr_port,&current_rules_dest_port);
-								// cout << "dest_port" << dest_port << endl;
+								// cout << "dest_port" << dest_port << " --- " << endl;
 								// cout << current_rules_dest_port << " and " << dest_port << endl;
 								if (dest_port == current_rules_dest_port){
 									// if the non-original dest port is already in the non-dest list; increment the package count for that dest port;
 									int cur_count;
 									cur_count = package_count[i];
-									// cout << "cur_count" << cur_count << endl;
 									package_count[i] = cur_count+1;
-									// cout <<package_count[i] <<endl;
-									new_rule = 0;
-								
+									new_rule = 0;								
 								}
 								// if all current_rules_dest_port not equal to the queried dest_port, then set new_rule to 1;
 								// otherwise, it will break from this for loop before head
@@ -587,10 +616,12 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 							// Received (src= cont, dest= sw1) [ADD]:
 	 						// (srcIP= 0-1000, destIP= 200-210, action= FORWARD:2, pri= 4, pktCount= 0)
 							if(new_rule){
+								num_of_rules++; 				// increment the num of rules first
+
 								int n_new_rule;
 								MSG new_rule_msg;
-								msg = composeMSTR(input,port1,port2,arg[5]);
-								n_new_rule = sendFrame(sockfd,QUERY,&msg);
+								new_rule_msg = composeMSTR(input,port1,port2,arg[5]);
+								n_new_rule = sendFrame(sockfd,QUERY,&new_rule_msg);
 								if (n_new_rule < 0){
 									error("Sending frame error.");
 								}else{
@@ -599,15 +630,15 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 								strcpy(rules[num_of_rules],ranges);					// keep track of current rules
 								// list_command[num_of_rules] = 
-							
+								// list_command[num_of_rules] = 
 								// cout << rules[0] << endl;
-								num_of_rules++;
+								
 								ADDRULE_C++;
 								QUERY_C++;
 							}
 							pkgCount++;
 							// exit(0);
-						
+					
 
 							// out of range, send to controller for next instruction;
 							// if the range is already in the out_of_range list; then don't append the list
@@ -618,22 +649,32 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						// cout << src_port << endl;
 					}else{
 						delay_time = atoi(splited_str[2]);
-					
-						cout << "Entering a delay period for " << delay_time << " millisec" << endl;
-						usleep(delay_time*1000);
-						// cout << delay_time << endl;
+						// cout << splited_str[2] << "and" << delay_time << endl;
+						cout << " ** Entering a delay period for " << delay_time << " millisec" << endl;
+						sleep((delay_time/1000));
+						cout << " ** Delay period ended" << endl;
+						// exit(0);
+						// is_sleep = 1;
+						// sleep_time = delay_time;
 					}
         		}
 			}
+			// how to sleep and get msg;
+			// if (is_sleep){
+			// 	cout << " ** Entering a delay period for " << sleep_time << " millisec" << endl;
+			// 	sleep((sleep_time/1000));
+			// 	cout << " ** Delay period ended" << endl;				
+			// }
 		}
 		// first rule is special since it is the original rules
 		string original_pkgCount_s = convert_int_to_string(original_pkgCount);
 		string pkgCount_s = convert_int_to_string(pkgCount);
-		string first_rule = "[0](srcIP= 0-1000, destIP= "+ port3 +", action= FORWARD: "+ original_pkgCount_s + " pri= 4, pkgCount= " + pkgCount_s + ")";
+		string port3_str(port3);
+		string first_rule = "[0](srcIP= 0-1000, destIP= "+ port3_str +", action= FORWARD: "+ original_pkgCount_s + " pri= 4, pkgCount= " + pkgCount_s + ")";
 		list_command[1] = first_rule;
 		// poll setup
 		// int poll(struct pollfd fdarray[], nfds_t nfds, int timeout);
-
+		// cout << "lol...." << endl;
 		rc_msg = poll(polls, 4, 0);
 
 		if (rc_msg < 0) {
@@ -649,7 +690,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 					if (polls[i].fd == 0){
 						char *buffer = new char[10];
 						read(polls[i].fd,buffer,10);
-						cout << "stdin: " << buffer << endl;
+						// cout << "stdin: " << buffer << endl;
 						RemoveSpaces(buffer);
 						if (strcmp(buffer,"list")==10){							// why it is 10? 
 							for (int n_rule=1; n_rule< num_of_rules; n_rule++){
@@ -679,7 +720,13 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						read_i = read(sockfd,buffer,255);  							// read back from socket sockfd 
 						if (read_i < 0) {error("ERROR reading from socket");}
 						if (read_i == 0){cout << "Server closed. Exiting..." << endl;exit(0);}
-    					printf("%s\n",buffer);
+						if (strcmp(buffer,"ACK")==0){
+							// fifo_n = switch number
+							cout << "Received (src= cont, dest= sw" << fifo_n << ") [ACK]" << endl;
+							ACK_C++;
+							OPEN_C++;
+						}
+    					// printf("%s\n",buffer); // this return ACK
 
 						// cout  << "ACCEPTING CONNECTION ... " << endl;
 
