@@ -82,7 +82,7 @@ string switch_stats(int OPEN_C, int ACK_C, int QUERY_C, int ADMIT_C, int RELAYOU
 void controller(int n_swithes, int portNumber){
 
 	// socket setup
-	int sockfd, newsockfd;							 // socket (file decriptor) declaration:
+	int sockfd;							 // socket (file decriptor) declaration:
 	int switch_socket_fd[n_swithes];				 // declare the array that store number of switches socket fd;
 	socklen_t clilen; 								 // length of bytes for store address
 	char *buffer = new char[256];		
@@ -101,7 +101,7 @@ void controller(int n_swithes, int portNumber){
 	// memorization declartion
 	int newsockfd_list[8] = {0,0,0,0,0,0,0,0};
 	// memorize the switches's ip address
-	char newsockfd_list_ip_for_print[8][20] = {"null","null","null","null","null","null","null","null"};
+	char newsockfd_list_ip_for_print[8][50] = {"null","null","null","null","null","null","null","null"};
 	char newsockfd_list_ip[8][20] = {"null","null","null","null","null","null","null","null"};
 
 	int OPEN_C  = 0;
@@ -110,9 +110,9 @@ void controller(int n_swithes, int portNumber){
 	int ADD_C   = 0;
 
 	// poll setup
-	struct pollfd polls[7];
+	struct pollfd polls[2+n_swithes];
 	int    timeout;
-	int    current_msg = 7;
+	int    current_msg = 2+n_swithes;
 	timeout = (10* 1000);			// set timeout for 10 sec;
 	int rc_msg;
 	
@@ -120,6 +120,7 @@ void controller(int n_swithes, int portNumber){
 	polls[0].events = POLLIN;
 	polls[1].fd = sockfd;
 	polls[1].events = POLLIN;
+	int switch_socket_counter = 2;
 	// polls[2].fd = sockfd_2;
 
 	while(1){
@@ -173,7 +174,7 @@ void controller(int n_swithes, int portNumber){
 
 					}else if(polls[i].fd == sockfd){
 						// At this point, there is already incoming message which is sockfd
-						int read_i, write_i;
+						int read_i, write_i,newsockfd;
 						//The accept() system call is used with connection-based socket types
        					//(SOCK_STREAM, SOCK_SEQPACKET).  It extracts the first connection
        					//request on the queue of pending connections for the listening socket,
@@ -183,8 +184,12 @@ void controller(int n_swithes, int portNumber){
        					//this call.
 						newsockfd = accept(sockfd,  (struct sockaddr *) &cli_addr, &clilen);
 						if (newsockfd < 0) { error("ERROR on accept"); }  // error checking for accept
-						cout << "newsockfd: " << newsockfd << endl;
+						// cout << "newsockfd: " << newsockfd << endl;
+						polls[switch_socket_counter].fd 	= newsockfd;
+						polls[switch_socket_counter].events = POLLIN;
 						
+						switch_socket_counter++;
+						if((switch_socket_counter-2) > n_swithes) { cout << "OPENED SWITCH NUMBER MORE THAN DEFINED! Exiting..." << endl; exit(0);}
 						// using array to store the newsockfd for all switches!
 						// write back to that newsockfd corresponding to the switches.
 						// do I need this? after I got the msg, then I send it back to where it comes from; ask about this;
@@ -203,10 +208,11 @@ void controller(int n_swithes, int portNumber){
 						sscanf(switch_number_buffer,"sw%d",&switch_number);
 						// cout << KINDNAME[frame.kind] << ": " << strcmp(KINDNAME[frame.kind],"QUERY") << endl;
 					
-						cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
+						// cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
 						if (strcmp(KINDNAME[frame.kind],"OPEN") == 0){
 							// append to tracking list first
 							newsockfd_list[switch_number] = newsockfd;
+							cout << "newsockfd_list[switch_number]" << newsockfd_list[switch_number] << endl;
 							strcpy(newsockfd_list_ip[switch_number],msg.port3);
 							// append to tracking list first
 
@@ -251,50 +257,6 @@ void controller(int n_swithes, int portNumber){
 								cout << "Transmitted (src= cont, dest="<< msg.switch_no<< ") [ACK]" << endl;
 								ACK_C++;
 							}
-						}else if (strcmp(KINDNAME[frame.kind],"QUERY") == 0){
-							QUERY_C++;
-							ADD_C++;
-
-							int n;
-							int src_ip, dest_ip;
-							sscanf(msg.port3,"%d-%d",&src_ip,&dest_ip);
-							cout << "Received (src= "<< msg.switch_no << ", dest= cont) [QUERY]:" << "header= (srcIP= " << src_ip << ", dest= " << dest_ip << " )" << endl;
-
-							// check out the switches available; 
-							// if the range is sendable; compose the msg with FORWARD
-							// else compose the msg with DROP
-							int drop_query = 1;
-							for(int current_switch=1; current_switch < 8; current_switch++){
-								int switch_dest_ip_low, switch_dest_ip_high;
-								int switch_fd;
-								sscanf(newsockfd_list_ip[current_switch],"%d-%d",&switch_dest_ip_low,&switch_dest_ip_high);
-								
-								if (dest_ip >= switch_dest_ip_low && dest_ip <= switch_dest_ip_high){
-									if(current_switch != switch_number){
-										switch_fd = newsockfd_list[current_switch];
-										// find the corresponding switch, send the msg with forward;
-										int num_forward = 1;
-										cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
-										cout << "\t(srcIP= 0-1000, destIP= " << newsockfd_list_ip[current_switch] << " action= FORWARD:" << num_forward << ", pri= 4, pktCount= 0" << endl;
-										drop_query = 0;
-									}
-									
-								}
-								 
-							}
-							if(drop_query){
-								int num_drop = 0;
-								cout << "Transmitted (src= cont, dest= sw" << switch_number << ")[ADD]" << endl;
-								cout << "\t(srcIP= 0-1000, destIP= " << dest_ip <<"-"<< dest_ip << " action= DROP:" << num_drop << ", pri= 4, pktCount= 0" << endl;
-							}
-							// Transmitted (src= cont, dest= sw2) [ADD]:
-	 						// 	(srcIP= 0-1000, destIP= 100-110, action= FORWARD:1, pri= 4, pktCount= 0)
-							// note: after switch get the add, then immeadiately send msg to other switches
-							// string port3(msg.port3);
-
-							
-							
-
 						}else{
 							cout << "Unrecognized request!" << endl;
 							continue;
@@ -321,6 +283,73 @@ void controller(int n_swithes, int portNumber){
 						// // printf("Here is the message: %s\n",buffer);
 						// // cout  << "ACCEPTING CONNECTION ... " << endl;
 
+					}
+					else{
+						// probably is other socket
+						// switch1 is in poll[2]; switch2 is in poll[3]; ves versa
+						// query request
+						// i = the position of the current fd
+
+						// determine which switch
+						int switch_num_query;
+						for (int switch_no_query = 0; switch_no_query < 8; switch_no_query++){
+							if (newsockfd_list[switch_no_query] == polls[i].fd){
+								switch_num_query = switch_no_query;
+							}
+						}
+						FRAME frame;
+						MSG msg;
+						cout << "polls[i].fd " << polls[i].fd << endl;
+						memset( (char *) &frame, 0, sizeof(frame) );
+						frame = rcvFrame(polls[i].fd);
+						msg = frame.msg;				
+						// cout << "KINDNAME[frame.kind] " << KINDNAME[frame.kind] << endl;
+						if (strcmp(KINDNAME[frame.kind],"QUERY") == 0){
+							QUERY_C++;
+							ADD_C++;
+							
+
+							// int n;
+							// int src_ip, dest_ip;
+							// sscanf(msg.port3,"%d-%d",&src_ip,&dest_ip);
+							// cout << "Received (src= "<< msg.switch_no << ", dest= cont) [QUERY]:" << "header= (srcIP= " << src_ip << ", dest= " << dest_ip << " )" << endl;
+
+							// // check out the switches available; 
+							// // if the range is sendable; compose the msg with FORWARD
+							// // else compose the msg with DROP
+							// int drop_query = 1;
+							// for(int current_switch=1; current_switch < 8; current_switch++){
+							// 	int switch_dest_ip_low, switch_dest_ip_high;
+							// 	int switch_fd;
+							// 	sscanf(newsockfd_list_ip[current_switch],"%d-%d",&switch_dest_ip_low,&switch_dest_ip_high);
+								
+							// 	if (dest_ip >= switch_dest_ip_low && dest_ip <= switch_dest_ip_high){
+							// 		if(current_switch != switch_num_query){
+							// 			switch_fd = newsockfd_list[current_switch];
+							// 			// find the corresponding switch, send the msg with forward;
+							// 			int num_forward = 1;
+							// 			cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
+							// 			cout << "\t(srcIP= 0-1000, destIP= " << newsockfd_list_ip[current_switch] << " action= FORWARD:" << num_forward << ", pri= 4, pktCount= 0" << endl;
+							// 			drop_query = 0;
+							// 		}
+									
+							// 	}
+								 
+							// }
+							// if(drop_query){
+							// 	int num_drop = 0;
+							// 	cout << "Transmitted (src= cont, dest= sw" << switch_num_query << ")[ADD]" << endl;
+							// 	cout << "\t(srcIP= 0-1000, destIP= " << dest_ip <<"-"<< dest_ip << " action= DROP:" << num_drop << ", pri= 4, pktCount= 0" << endl;
+							// }
+
+
+
+
+							// Transmitted (src= cont, dest= sw2) [ADD]:
+	 						// 	(srcIP= 0-1000, destIP= 100-110, action= FORWARD:1, pri= 4, pktCount= 0)
+							// note: after switch get the add, then immeadiately send msg to other switches
+							// string port3(msg.port3);
+						}
 					}
 
 				}
@@ -694,11 +723,11 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						RemoveSpaces(buffer);
 						if (strcmp(buffer,"list")==10){							// why it is 10? 
 							for (int n_rule=1; n_rule< num_of_rules; n_rule++){
-								string i_s = convert_int_to_string(i);
-								string pkgCount_s = convert_int_to_string(pkgCount);
-								string DELIVER_s  = convert_int_to_string(DELIVER);
-								string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
-								list_command[n_rule] = single_command;
+								// string i_s = convert_int_to_string(i);
+								// string pkgCount_s = convert_int_to_string(pkgCount);
+								// string DELIVER_s  = convert_int_to_string(DELIVER);
+								// string single_command = "["+i_s+"]" + "(srcIP= 0-1000, destIP= "+ port3 +", action= "+" DELIVER: "+DELIVER_s+ " pri= 4, pkgCount= " + pkgCount_s + ")";
+								cout << list_command[n_rule] << endl;
 							}
 							string switch_stats_info = switch_stats(OPEN_C,ACK_C,QUERY_C,ADMIT_C,RELAYOUT_C,RELAYIN_C,ADDRULE_C);
 							cout << switch_stats_info << endl;
@@ -718,17 +747,23 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 						int read_i;
 						char *buffer = new char[255];
 						read_i = read(sockfd,buffer,255);  							// read back from socket sockfd 
-						if (read_i < 0) {error("ERROR reading from socket");}
 						if (read_i == 0){cout << "Server closed. Exiting..." << endl;exit(0);}
+						if (read_i < 0) {error("ERROR reading from socket");}
 						if (strcmp(buffer,"ACK")==0){
 							// fifo_n = switch number
 							cout << "Received (src= cont, dest= sw" << fifo_n << ") [ACK]" << endl;
 							ACK_C++;
 							OPEN_C++;
 						}
-    					// printf("%s\n",buffer); // this return ACK
-
-						// cout  << "ACCEPTING CONNECTION ... " << endl;
+						// else if(strcmp(buffer,"ADD")==0){
+						// 	// print received
+						// 	// append the new rule to list_command
+						// 	string first_rule = "[0](srcIP= 0-1000, destIP= "+ port3_str +", action= FORWARD: "+ original_pkgCount_s + " pri= 4, pkgCount= " + pkgCount_s + ")";
+						// }
+						// else{
+						// 	cout << "Unknown rules!" << endl;
+						// 	continue;
+						// }
 
 					}else if (polls[i].fd == fifo_number_port1 || polls[i].fd == fifo_number_port2 ){
 						// do something about the incoming fifo numbers
