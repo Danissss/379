@@ -30,6 +30,7 @@
 #include <netinet/in.h>
 #include <netdb.h> 
 #include <poll.h>
+#include <time.h>
 
 using namespace std; 
   
@@ -241,15 +242,15 @@ void controller(int n_swithes, int portNumber){
 							
 							// for ack msg, there is no much for input
 							// MSG composeMSTR (const string &a,  int port1,  int port2, char *port3);
-							// MSG ack_msg;
-							// string dump_input = "null";
-							// int dump_port1 = 0;
-							// int dump_port2 = 0;
-							// char *dump_port3 = new char[10];
-							// strcpy(dump_port3,"null")  
-							// ack_msg = composeMSTR(dump_input,dump_port1,dump_port2,dump_port3);
-							// n = sendFrame(newsockfd,ACK,&ack_msg);
-							write_i = write(newsockfd,"ACK",10); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
+							MSG ack_msg;
+							string dump_input = "null";
+							int dump_port1 = 0;
+							int dump_port2 = 0;
+							char *dump_port3 = new char[10];
+							strcpy(dump_port3,"null");
+							ack_msg = composeMSTR(dump_input,dump_port1,dump_port2,dump_port3);
+							write_i = sendFrame(newsockfd,ACK,&ack_msg);
+							// write_i = write(newsockfd,"ACK",10); // after get the incoming msg, send back to the newsockfd (since receive from newsockfd )
 							if (write_i < 0) {
 								error("ERROR writing to socket");
 							}
@@ -291,6 +292,7 @@ void controller(int n_swithes, int portNumber){
 						// i = the position of the current fd
 
 						// determine which switch
+						// polls[i].fd is the fd for the incoming switch fd 
 						int switch_num_query;
 						for (int switch_no_query = 0; switch_no_query < 8; switch_no_query++){
 							if (newsockfd_list[switch_no_query] == polls[i].fd){
@@ -299,7 +301,7 @@ void controller(int n_swithes, int portNumber){
 						}
 						FRAME frame;
 						MSG msg;
-						cout << "polls[i].fd " << polls[i].fd << endl;
+						// cout << "polls[i].fd " << polls[i].fd << endl;
 						memset( (char *) &frame, 0, sizeof(frame) );
 						frame = rcvFrame(polls[i].fd);
 						msg = frame.msg;				
@@ -308,39 +310,67 @@ void controller(int n_swithes, int portNumber){
 							QUERY_C++;
 							ADD_C++;
 							
+							FRAME frame_ADD;
+							MSG msg_ADD;
+							// no need for construct new MSG struct
+							// cout << "polls[i].fd " << polls[i].fd << endl;
+							memset( (char *) &frame_ADD, 0, sizeof(frame) );
 
-							// int n;
-							// int src_ip, dest_ip;
-							// sscanf(msg.port3,"%d-%d",&src_ip,&dest_ip);
-							// cout << "Received (src= "<< msg.switch_no << ", dest= cont) [QUERY]:" << "header= (srcIP= " << src_ip << ", dest= " << dest_ip << " )" << endl;
+							int n, write_add;
+							int src_ip, dest_ip;
+							sscanf(msg.port3,"%d-%d",&src_ip,&dest_ip);
+							cout << "Received (src= "<< msg.switch_no << ", dest= cont) [QUERY]:" << "header= (srcIP= " << src_ip << ", dest= " << dest_ip << " )" << endl;
 
-							// // check out the switches available; 
-							// // if the range is sendable; compose the msg with FORWARD
-							// // else compose the msg with DROP
-							// int drop_query = 1;
-							// for(int current_switch=1; current_switch < 8; current_switch++){
-							// 	int switch_dest_ip_low, switch_dest_ip_high;
-							// 	int switch_fd;
-							// 	sscanf(newsockfd_list_ip[current_switch],"%d-%d",&switch_dest_ip_low,&switch_dest_ip_high);
+							// check out the switches available; 
+							// if the range is sendable; compose the msg with FORWARD
+							// else compose the msg with DROP
+							int drop_query = 1;
+							for(int current_switch=1; current_switch < 8; current_switch++){
+								int switch_dest_ip_low, switch_dest_ip_high;
+								int switch_fd;
+								if (strcmp(newsockfd_list_ip[current_switch], "null")!= 0){
+									sscanf(newsockfd_list_ip[current_switch],"%d-%d",&switch_dest_ip_low,&switch_dest_ip_high);
 								
-							// 	if (dest_ip >= switch_dest_ip_low && dest_ip <= switch_dest_ip_high){
-							// 		if(current_switch != switch_num_query){
-							// 			switch_fd = newsockfd_list[current_switch];
-							// 			// find the corresponding switch, send the msg with forward;
-							// 			int num_forward = 1;
-							// 			cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
-							// 			cout << "\t(srcIP= 0-1000, destIP= " << newsockfd_list_ip[current_switch] << " action= FORWARD:" << num_forward << ", pri= 4, pktCount= 0" << endl;
-							// 			drop_query = 0;
-							// 		}
-									
-							// 	}
+									if (dest_ip >= switch_dest_ip_low && dest_ip <= switch_dest_ip_high){
+										if(current_switch != switch_num_query){
+											switch_fd = newsockfd_list[current_switch];
+											// find the corresponding switch, send the msg with forward;
+											// MSG composeMSTR (const string &a,  int port1,  int port2, char *port3);
+											// At this case: *port3 is the action
+											
+											string empty_string = "null";
+											char *FORWARD_char = new char[10];
+											strcpy(FORWARD_char,"FORWARD");
+											msg_ADD = composeMSTR(empty_string,switch_dest_ip_low,switch_dest_ip_high,FORWARD_char);
+											write_add = sendFrame(polls[i].fd,ADD,&msg_ADD);
+											if (write_add < 0){
+												error("Sending frame failed.");
+											}else{
+												int num_forward = 1;
+												cout << "Transmitted (src= cont, dest= sw" << current_switch << ")[ADD]" << endl;
+												cout << "\t(srcIP= 0-1000, destIP= " << newsockfd_list_ip[current_switch] << " action= FORWARD:" << num_forward << ", pri= 4, pktCount= 0" << endl;
+												drop_query = 0;
+											}
+											
+										}
+									}
+								}
 								 
-							// }
-							// if(drop_query){
-							// 	int num_drop = 0;
-							// 	cout << "Transmitted (src= cont, dest= sw" << switch_num_query << ")[ADD]" << endl;
-							// 	cout << "\t(srcIP= 0-1000, destIP= " << dest_ip <<"-"<< dest_ip << " action= DROP:" << num_drop << ", pri= 4, pktCount= 0" << endl;
-							// }
+							}
+							if(drop_query){
+								string empty_string = "null";
+								char *DROP_char = new char[5];
+								strcpy(DROP_char,"DROP");
+								msg_ADD = composeMSTR(empty_string,dest_ip,dest_ip,DROP_char);
+								write_add = sendFrame(polls[i].fd,ADD,&msg_ADD);
+								if (write_add < 0){
+									error("Sending frame failed.");
+								}else{
+									int num_drop = 0;
+									cout << "Transmitted (src= cont, dest= sw" << switch_num_query << ")[ADD]" << endl;
+									cout << "\t(srcIP= 0-1000, destIP= " << dest_ip <<"-"<< dest_ip << " action= DROP:" << num_drop << ", pri= 4, pktCount= 0" << endl;
+								}
+							}
 
 
 
@@ -549,10 +579,21 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 	// Received (src= cont, dest= sw1) [ADD]:
 	//  	(srcIP= 0-1000, destIP= 200-210, action= FORWARD:2, pri= 4, pktCount= 0)
 
+	// set delay timer; Get the current time;
+	time_t   now;
+    now = time(NULL);
+	int time_delay = (long)now;
 	while(1){
 		string STRING;
 		// parse the file here
 		if (!myfile.eof() || myfile.eof()){
+			time_t   current_time;
+    		current_time = time(NULL);
+			int current_time_int = (long)current_time;
+
+
+			// delay condition:
+			if (current_time_int > time_delay){
 			getline(myfile,STRING); // Saves the line in STRING.
 			int is_sleep = 0;
 			int sleep_time;
@@ -575,7 +616,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 				// same swith number; parse the line; file_line increments by one at the end of the if;
 				
 
-					int src_port, dest_port, delay_time;
+					int src_port, dest_port;
 					// cout << splited_str[1] << endl;
 					if (strcmp(splited_str[1],"delay")!=0){
 						src_port = atoi(splited_str[1]);
@@ -658,7 +699,10 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 								}
 
 								strcpy(rules[num_of_rules],ranges);					// keep track of current rules
-								// list_command[num_of_rules] = 
+								// string number_of_rule_s = convert_int_to_string(number_of_rule-1);
+
+								// string rules_for_list_command  = "["+number_of_rule_s+"]"+ 
+								// strcpy(list_command[num_of_rules], 
 								// list_command[num_of_rules] = 
 								// cout << rules[0] << endl;
 								
@@ -677,17 +721,26 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
         				}
 						// cout << src_port << endl;
 					}else{
-						delay_time = atoi(splited_str[2]);
+						int delay_time_packet = atoi(splited_str[2]);
 						// cout << splited_str[2] << "and" << delay_time << endl;
-						cout << " ** Entering a delay period for " << delay_time << " millisec" << endl;
-						sleep((delay_time/1000));
-						cout << " ** Delay period ended" << endl;
-						// exit(0);
-						// is_sleep = 1;
-						// sleep_time = delay_time;
+						cout << " ** Entering a delay period for " << delay_time_packet << " millisec" << endl;
+						
+						// get current time;
+						time_t   delay;
+    					delay = time(NULL);
+						int delayed_int = (long)delay;
+						time_delay = delayed_int+delay_time_packet;
 					}
         		}
 			}
+			}
+			// 	cout << "Remaining delay: " << delay_time_count << endl;
+			// 	delay_time_count--;
+			// 	if (delay_time_count==0){
+			// 		cout << " ** Delay period ended" << endl;
+			// 	}
+			// }
+
 			// how to sleep and get msg;
 			// if (is_sleep){
 			// 	cout << " ** Entering a delay period for " << sleep_time << " millisec" << endl;
@@ -745,25 +798,26 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 
 					}else if(polls[i].fd == sockfd){
 						int read_i;
-						char *buffer = new char[255];
-						read_i = read(sockfd,buffer,255);  							// read back from socket sockfd 
-						if (read_i == 0){cout << "Server closed. Exiting..." << endl;exit(0);}
-						if (read_i < 0) {error("ERROR reading from socket");}
-						if (strcmp(buffer,"ACK")==0){
+						MSG msg_in_switch;
+						FRAME frame_in_switch;
+						frame_in_switch = rcvFrame(sockfd);
+						msg_in_switch = frame_in_switch.msg;
+
+						if (strcmp(KINDNAME[frame_in_switch.kind],"ACK") == 0){
 							// fifo_n = switch number
 							cout << "Received (src= cont, dest= sw" << fifo_n << ") [ACK]" << endl;
 							ACK_C++;
 							OPEN_C++;
 						}
-						// else if(strcmp(buffer,"ADD")==0){
-						// 	// print received
-						// 	// append the new rule to list_command
-						// 	string first_rule = "[0](srcIP= 0-1000, destIP= "+ port3_str +", action= FORWARD: "+ original_pkgCount_s + " pri= 4, pkgCount= " + pkgCount_s + ")";
-						// }
-						// else{
-						// 	cout << "Unknown rules!" << endl;
-						// 	continue;
-						// }
+						else if(strcmp(KINDNAME[frame_in_switch.kind],"ADD")==0){
+							// print received
+							// append the new rule to list_command
+							string first_rule = "[0](srcIP= 0-1000, destIP= "+ port3_str +", action= FORWARD: "+ original_pkgCount_s + " pri= 4, pkgCount= " + pkgCount_s + ")";
+						}
+						else{
+							cout << "Unknown rules!" << endl;
+							continue;
+						}
 
 					}else if (polls[i].fd == fifo_number_port1 || polls[i].fd == fifo_number_port2 ){
 						// do something about the incoming fifo numbers
@@ -783,6 +837,7 @@ void switches(char **arg, const string &input, char *serverAddress, int portNumb
 		}
 	}
 }
+
 
 
 
