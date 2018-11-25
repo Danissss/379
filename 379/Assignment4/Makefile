@@ -4,7 +4,7 @@ default: compile
 
 compile: 
 	# g++ -o a2sdn  a2sdn.cc
-	g++ -o a2tasks  a2tasks.cc
+	g++ -o a4tasks  a4tasks.cc
 
 tar:
 	tar -cvf submit.tar *

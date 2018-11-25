@@ -1,5 +1,5 @@
 // example command:
-// ./a4tasks inputFile monitorTime NITER
+// ./a4tasks inputFile 100 20
 
 // Other reference:
 // https://linux.die.net/man/3/poll
@@ -36,6 +36,10 @@ using namespace std;
 // macro definition 
 #define MAX_NRES_TYPES = 10
 #define MAX_NTASKS     = 25
+#define MAXLINE     132
+#define MAX_NTOKEN  MAXLINE
+#define MAXWORD     32
+
 
 //function declartion
 char* RemoveDigits(char* input);
@@ -45,9 +49,11 @@ string convert_int_to_string(int input);
 void error(const char *msg);
 void RemoveSpaces(char* source);
 void simulator(int argc, char** argv, int time_start_program);
+void split_name_value(char *string, int *value);
 
 //global variable declartion
 pthread_t ntid;
+time_t   program_start;
 
 
 
@@ -77,23 +83,76 @@ void task_thread(int argc, char** argu){
 void simulator(int argc, char** argv,int time_start_program){
     // open file
     ifstream inputFile;
-	if(inputFile.open(argv[1])<0){ error("Failed to open file. ")};
+	inputFile.open(argv[1]);
 
     int monitorTime = atoi(argv[2]);
     int NITER = atoi(argv[3]); // n iteration
 
     string STRING;
-	if (!myfile.eof() || myfile.eof()){
-		getline(myfile,STRING); 
+	while (!inputFile.eof()){
+		getline(inputFile,STRING); 
+        // cout << STRING << endl;
+        // split the string 
         
-
+        
+        
         if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
             // if the line is task line, create the task thread
             // each task thread will execute for NITER iterations?
             // if the line is resource, then create what?
+            char strings[50];
+	        char delimiter[1];
+            int num_words;
+	        strcpy(delimiter," ");
+	        char * tab = new char [STRING.length()+1];
+	        strcpy (tab, STRING.c_str());
+	        char splited_str[MAXLINE][MAXWORD];
+	        num_words = split(tab,splited_str,delimiter);
+            // cout<< num_words << endl;
+            if(strcmp(splited_str[0],"resources") == 0){
+                cout << STRING << endl;
+                // create the resources array:
+                for(int i=1; i < num_words; i++){
+                    int value;
+                    char *name_type = new char[32];
+                    char delimiter_resource[1];
+                    strcpy(delimiter_resource,":");
+                    char splited_resource[MAXLINE][MAXWORD];
+                    split(splited_str[i],splited_resource,delimiter_resource);
+                    
+                    value = atoi(splited_resource[1]);
+                    strcpy(name_type, splited_resource[0]);
+                    // cout << value << endl;
+                    // cout << name_type << endl;
+                }
+            }
+            
+            if (strcmp(splited_str[0],"task") == 0){
+                // cout << STRING << endl;
+                int busyTime = atoi(splited_str[2]);
+                int idleTime = atoi(splited_str[3]);;
+                char *task_name = new char[32];
+                strcpy(task_name,splited_str[1]);
+                // cout << "busyTime " << busyTime << endl;
+                // cout << "idleTime " << idleTime << endl;
+                // cout << "task_name" << task_name<< endl;
+                for (int i=4; i < num_words; i++){
+                    int value;
+                    char *name_type = new char[32];
+                    char delimiter_resource[1];
+                    strcpy(delimiter_resource,":");
+                    char splited_resource[MAXLINE][MAXWORD];
+                    split(splited_str[i],splited_resource,delimiter_resource);
+                    
+                    value = atoi(splited_resource[1]);
+                    strcpy(name_type, splited_resource[0]);
+                    // cout << value << endl;
+                    // cout << name_type << endl;
+                }
+                
+            }
 
-            int err;
-
+            // start a monitor thread? 
         }
     }
 
@@ -109,7 +168,17 @@ void simulator(int argc, char** argv,int time_start_program){
 
 
 
+void split_name_value(char *string, int *value){
+    char delimiter_resource[1];
+    char splited_resource[MAXLINE][MAXWORD];
+    char * name = new char[32];
+    strcpy(delimiter_resource,":");
+    split(string,splited_resource,delimiter_resource);
+    *value = atoi(splited_resource[1]);
+    // strcpy(name,"h");
+    // return name;
 
+}
 
 
 
@@ -143,6 +212,7 @@ char* RemoveDigits(char* input)
     *dest = '\0';
     return input;
 }
+
 
 // how to use split:
 // char * tab2 = new char [a.length()+1];
@@ -201,7 +271,7 @@ void error(const char *msg)
 int main(int argc, char** argv) 
 { 
 	//
-    time_t   program_start;
+    
     program_start = time(NULL);
 	int time_start_program = (long)program_start;
 
