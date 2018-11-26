@@ -41,6 +41,7 @@ using namespace std;
 #define MAXWORD     32
 
 
+
 //function declartion
 char* RemoveDigits(char* input);
 int split(char inStr[],  char token[][MAXWORD], char fs[]);
@@ -50,10 +51,55 @@ void error(const char *msg);
 void RemoveSpaces(char* source);
 void simulator(int argc, char** argv, int time_start_program);
 void split_name_value(char *string, int *value);
+void *monitor_thread(void * arg);
+
+// define struct
+typedef struct { 
+    char resource_type[10][32]; 
+    int resource_unit[10]; 
+} resource;
+
+struct resources2{ 
+    char * resource_type;
+    int resource_unit;
+    struct resources2 *next;
+};
+
+// monitor the task
+// for each task; task_name = tasks.task_name[i] if tasks.status[i] is run; append to run list ...; 
+// print monitor: wait list, run list, idle list
+typedef struct tasks {
+    char task_name[25][32];
+    char status[25][10];    // WAIT; RUN; IDLE
+} tasks;
+
+
+// struct args {
+//     char* name;
+//     int age;
+// };
+// void *hello(void *input) {
+//     printf("name: %s\n", ((struct args*)input)->name);
+//     printf("age: %d\n", ((struct args*)input)->age);
+// }
+// int main() {
+//     struct args *Allen = (struct args *)malloc(sizeof(struct args));
+//     char allen[] = "Allen";
+//     Allen->name = allen;
+//     Allen->age = 20;
+
+//     pthread_t tid;
+//     pthread_create(&tid, NULL, hello, (void *)Allen);
+//     pthread_join(tid, NULL);
+//     return 0;
+// }
+
 
 //global variable declartion
 pthread_t ntid;
 time_t   program_start;
+resource g_resource;
+tasks task_list;
 
 
 
@@ -64,8 +110,68 @@ time_t   program_start;
     // printf("Before Thread\n"); 
     // pthread_create(&thread_id, NULL, myThreadFun, NULL); 
     // pthread_join(thread_id, NULL); 
-void monitor_thread(int monitorTime){
+void *monitor_thread(void *arg){
+    int monitorTime = *(int*)arg;
+    pid_t       pid;
+    pthread_t   tid;
+    int tid_int;
+    pid = getpid();
+    tid = pthread_self();           // return thread_id
+    tid_int = (unsigned long)tid;
+    //most 25 task
+    while(1){
+        char wait_list[25][32];
+        char run_list[25][32];
+        char idle_list[25][32];
+        // task_list.task_name
+        // task_list.status
+        int wait_inds = 0;
+        int run_inds  = 0;
+        int idle_inds = 0;
+        for (int i = 0; i<25; i++){
+            if (task_list.status[i] != NULL){
+                if (strcmp(task_list.status[i],"WAIT")==0){
+                    strcpy(wait_list[wait_inds],task_list.task_name[i]);
+                    wait_inds++;
+                }
+                else if (strcmp(task_list.status[i],"RUN")==0){
+                    strcpy(run_list[run_inds],task_list.task_name[i]);
+                    run_inds++;
+                }
+                else if (strcmp(task_list.status[i],"IDLE")==0){
+                    strcpy(idle_list[idle_inds],task_list.task_name[i]);
+                    idle_inds++;
+                }
+            }
+        }
+        // print the current status:
+        char *wait_string = new char[100];
+        strcpy(wait_string,"[WAIT] ");
+        char *run_string = new char[100];
+        strcpy(run_string,"[RUN] ");
+        char *idle_string = new char[100];
+        strcpy(idle_string,"[IDLE] ");
 
+        for (int i = 0; i<wait_inds; i++){
+            strcat(wait_string,wait_list[wait_inds]);
+            strcat(wait_string," ");
+        }
+        for (int i = 0; i<run_inds; i++){
+            strcat(run_string,run_list[run_inds]);
+            strcat(run_string," ");
+        }
+        for (int i = 0; i<idle_inds; i++){
+            strcat(idle_string,idle_list[idle_inds]);
+            strcat(idle_string," ");
+        }
+        cout << "monitor:" << wait_string << endl;
+        cout << "        " << run_string  << endl;
+        cout << "        " << idle_string  << endl;
+
+        // The sleep command suspends execution for a minimum of seconds.
+        sleep(monitorTime/1000);
+    }
+    return NULL;
 }
 
 
@@ -89,12 +195,24 @@ void simulator(int argc, char** argv,int time_start_program){
     int NITER = atoi(argv[3]); // n iteration
 
     string STRING;
+    memset( (char *) &task_list, 0, sizeof(task_list) );
+
+    // start monitor thread
+    int err;
+    int *monitorTime_p = new int[5];
+    *monitorTime_p = monitorTime;
+    err = pthread_create(&ntid, NULL, monitor_thread,  monitorTime_p);
+    if (err != 0) { cout << "Can't create the monitor thread." << endl; exit(0); }
+    else          { cout << "Moniter thread created!" << endl; }
+    pthread_join(ntid, NULL);
+    
 	while (!inputFile.eof()){
 		getline(inputFile,STRING); 
         // cout << STRING << endl;
         // split the string 
         
         
+
         
         if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
             // if the line is task line, create the task thread
@@ -110,6 +228,7 @@ void simulator(int argc, char** argv,int time_start_program){
 	        num_words = split(tab,splited_str,delimiter);
             // cout<< num_words << endl;
             if(strcmp(splited_str[0],"resources") == 0){
+                memset( (char *) &g_resource, 0, sizeof(g_resource) );
                 cout << STRING << endl;
                 // create the resources array:
                 for(int i=1; i < num_words; i++){
@@ -120,10 +239,12 @@ void simulator(int argc, char** argv,int time_start_program){
                     char splited_resource[MAXLINE][MAXWORD];
                     split(splited_str[i],splited_resource,delimiter_resource);
                     
-                    value = atoi(splited_resource[1]);
-                    strcpy(name_type, splited_resource[0]);
-                    // cout << value << endl;
-                    // cout << name_type << endl;
+                    // value = atoi(splited_resource[1]);
+                    // strcpy(name_type, splited_resource[0]);
+                    strcpy(g_resource.resource_type[i-1],splited_resource[0]);
+                    g_resource.resource_unit[i-1] = atoi(splited_resource[1]);
+                    // cout << g_resource.resource_type[i-1] << endl;
+                    // cout << g_resource.resource_unit[i-1] << endl;
                 }
             }
             
@@ -149,6 +270,11 @@ void simulator(int argc, char** argv,int time_start_program){
                     // cout << value << endl;
                     // cout << name_type << endl;
                 }
+
+                // create the NITER thread here
+                // for 0 -> NITER
+                //    create thread
+                //    join thread
                 
             }
 
