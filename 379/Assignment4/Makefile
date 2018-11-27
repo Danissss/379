@@ -4,14 +4,14 @@ default: compile
 
 compile: 
 	# g++ -o a2sdn  a2sdn.cc
-	g++ -o a4tasks  a4tasks.cc
+	g++  a4tasks.cc -lpthread -o a4tasks
 
 eclass:
-	gcc -o raceA raceA.c
-	gcc -o raceB raceB.c
-	gcc -o raceC raceC.c
-	gcc -o raceD raceD.c
-	gcc -o raceE raceE.c
+	gcc -o raceA raceA.c -lpthread
+	gcc -o raceB raceB.c -lpthread
+	gcc -o raceC raceC.c -lpthread
+	gcc -o raceD raceD.c -lpthread
+	gcc -o raceE raceE.c -lpthread
 clean_eclass:
 	rm raceA
 	rm raceB
