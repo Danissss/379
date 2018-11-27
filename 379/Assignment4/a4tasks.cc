@@ -51,8 +51,8 @@ void error(const char *msg);
 void RemoveSpaces(char* source);
 void simulator(int argc, char** argv, int time_start_program);
 void split_name_value(char *string, int *value);
-void *monitor_thread(void * arg);
-
+void *monitor_thread(void * arg);  //thread function
+void *task_thread(void *argu);     //thread function 
 // define struct
 typedef struct { 
     char resource_type[10][32]; 
@@ -73,6 +73,12 @@ typedef struct tasks {
     char status[25][10];    // WAIT; RUN; IDLE
 } tasks;
 
+struct task_args {
+    char *task_name;
+    int busyTime;
+    int idleTime;
+    char jobs[10][32];
+};
 
 // struct args {
 //     char* name;
@@ -177,13 +183,16 @@ void *monitor_thread(void *arg){
 
 
 
-void task_thread(int argc, char** argu){
+void *task_thread(void *argu){
     pid_t       pid;
     pthread_t   tid;
     int tid_int;
     pid = getpid();
     tid = pthread_self();           // return thread_id
     tid_int = (unsigned long)tid;
+    struct task_args *coming_task = (task_args*) argu; // this only for g++
+
+    return NULL;
 }
 
 void simulator(int argc, char** argv,int time_start_program){
@@ -250,14 +259,15 @@ void simulator(int argc, char** argv,int time_start_program){
             
             if (strcmp(splited_str[0],"task") == 0){
                 // cout << STRING << endl;
-                int busyTime = atoi(splited_str[2]);
-                int idleTime = atoi(splited_str[3]);;
-                char *task_name = new char[32];
-                strcpy(task_name,splited_str[1]);
+                struct task_args new_task;
+                new_task.busyTime = atoi(splited_str[2]);
+                new_task.idleTime = atoi(splited_str[3]);;
+                strcpy(new_task.task_name,splited_str[1]);
                 // cout << "busyTime " << busyTime << endl;
                 // cout << "idleTime " << idleTime << endl;
                 // cout << "task_name" << task_name<< endl;
                 for (int i=4; i < num_words; i++){
+                    int task_args_inds = 0;
                     int value;
                     char *name_type = new char[32];
                     char delimiter_resource[1];
@@ -269,12 +279,23 @@ void simulator(int argc, char** argv,int time_start_program){
                     strcpy(name_type, splited_resource[0]);
                     // cout << value << endl;
                     // cout << name_type << endl;
+                    strcpy(new_task.jobs[task_args_inds],splited_str[i]);
+                    task_args_inds++;
                 }
 
                 // create the NITER thread here
                 // for 0 -> NITER
                 //    create thread
                 //    join thread
+                // ref: https://stackoverflow.com/questions/16230542/passing-multiple-arguments-to-threaded-function-from-pthread-create
+                pthread_t task_tid;
+                int errs;
+                for(int iter = 0; iter < NITER; iter++){
+                    errs = pthread_create(&task_tid, NULL, task_thread, &new_task);
+                    if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(0); }
+                    else          { pthread_join(task_tid,NULL); }
+                }
+
                 
             }
 

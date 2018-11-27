@@ -13,7 +13,7 @@ struct readThreadParams {
 };
 
 void *bufferRead (void *context) {
-    struct readThreadParams *readParams = context;
+    struct readThreadParams *readParams = context; // this only works for gcc
 
     pthread_mutex_lock(&readParams->b.mutexBuffer);
     //<snip>
