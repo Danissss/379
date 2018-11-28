@@ -3,6 +3,10 @@
 
 // Other reference:
 // https://linux.die.net/man/3/poll
+
+// pthread_mutex_lock()
+// The mutex object referenced by mutex shall be locked by calling pthread_mutex_lock(). 
+// If the mutex is already locked, the calling thread shall block until the mutex becomes available.
 #define _POSIX_C_SOURCE 200809L
 // C++
 #include <iostream>
@@ -61,6 +65,7 @@ void change_task_state(char *task_name, char *status);
 void mutex_init (pthread_mutex_t* mutex);
 void mutex_lock (pthread_mutex_t* mutex);
 void mutex_unlock (pthread_mutex_t* mutex);
+void delay (int x);
 
 // define struct
 typedef struct { 
@@ -68,18 +73,34 @@ typedef struct {
     int resource_unit[10]; 
 } resource;
 
-struct resources2{ 
-    char * resource_type;
-    int resource_unit;
-    struct resources2 *next;
-};
+// struct resources2{ 
+//     char * resource_type;
+//     int resource_unit;
+//     struct resources2 *next;
+// };
 
 // monitor the task
 // for each task; task_name = tasks.task_name[i] if tasks.status[i] is run; append to run list ...; 
 // print monitor: wait list, run list, idle list
 typedef struct tasks {
-    char task_name[25][32];
+    char task_name[25][32];     // record the name
     char status[25][10];    // WAIT; RUN; IDLE
+
+
+    //rest of field is for later print system info;
+    int RUN[25];         // record num of runs/iteration
+    int WAIT_time[25];   // record total waiting time;
+    int last_tid[25];    // record the last tid for the task;
+
+    char resource_required[25][10][32];     // record name of required resource
+    int num_resource_required[25][10];   // record unit of required resource
+    int num_type_resource[25];           // record the number of types of resource for tasks
+
+
+    int idle_time[25];               // record the idle time
+    int busy_time[25];               // record the busy time
+   
+
 } tasks;
 
 struct task_args {
@@ -89,6 +110,7 @@ struct task_args {
     int busyTime;
     int idleTime;
     char jobs[10][32];
+    int current_task_num;
 
 };
 
@@ -118,7 +140,11 @@ struct task_args {
 pthread_t ntid;
 pthread_mutex_t  create_mutex;
 int time_start_program;
+int num_resource;
 resource g_resource;
+resource g_resource_copy;
+
+int num_tasks;
 tasks task_list;
 
 struct timeval spec;
@@ -195,7 +221,8 @@ void *monitor_thread(void *arg){
         cout << "..."                      << endl;
 
         // The sleep command suspends execution for a minimum of seconds.
-        sleep(monitorTime/1000);
+        // sleep(monitorTime/1000);
+        delay(monitorTime);
     }
     return NULL;
 }
@@ -219,11 +246,21 @@ void *task_thread(void *argu){
     tid_int = (unsigned long)tid;
     struct task_args *coming_task = (task_args*) argu; // this only for g++
     
+    int current_task_num = coming_task->current_task_num;
     int busyTime = coming_task->busyTime;
     int idleTime = coming_task->idleTime;
     int num_jobs = coming_task->num_jobs;
-    sleep(busyTime/1000);
+
+    // count wait time at this point since mutex_lock will be block if the create_mutex is locked;
+
     mutex_lock(&create_mutex);
+
+    // get total wait time for this thread for the task, then increment to 
+    // task_list.WAIT_time[current_task_num] = task_list.WAIT_time[current_task_num] + total_wait_time;
+
+    delay(busyTime);
+
+    
     change_task_state(coming_task->task_name, RUN);
     // check resources and take resources
     for (int i = 0; i < num_jobs; i++){
@@ -243,6 +280,7 @@ void *task_thread(void *argu){
 
     // cout << busyTime << "and idleTime: " << idleTime << endl;
     int time_gap = get_time_gap();
+    
     cout << "task " << coming_task->task_name << " (tid= " << tid_int << ", iter= " << coming_task->iter << ", time= " << time_gap << " msec)" << endl;
     
     // change state of task to idle
@@ -255,12 +293,19 @@ void *task_thread(void *argu){
 
     mutex_unlock (&create_mutex);                       // unlock the mutex
     change_task_state(coming_task->task_name, IDLE);    // enter the idle state
-    sleep(idleTime/1000);   //idleTime 
+    delay(idleTime);        // idleTime in millisecond
+    // sleep(idleTime/1000);   //idleTime 
+    
+    task_list.last_tid[current_task_num] = tid_int;
+    task_list.RUN[current_task_num] = coming_task->iter;
     pthread_exit(NULL);
     return NULL;
 }
 
 void simulator(int argc, char** argv,int time_start_program){
+    // start to count number of resources for later print;
+    num_resource = 0;
+    num_tasks    = 0;
     // open file
     ifstream inputFile;
 	inputFile.open(argv[1]);
@@ -308,6 +353,7 @@ void simulator(int argc, char** argv,int time_start_program){
             // cout<< num_words << endl;
             if(strcmp(splited_str[0],"resources") == 0){
                 memset( (char *) &g_resource, 0, sizeof(g_resource) );
+                memset( (char *) &g_resource_copy, 0, sizeof(g_resource_copy));
                 // cout << STRING << endl;
                 // create the resources array:
                 for(int i=1; i < num_words; i++){
@@ -322,6 +368,12 @@ void simulator(int argc, char** argv,int time_start_program){
                     // strcpy(name_type, splited_resource[0]);
                     strcpy(g_resource.resource_type[i-1],splited_resource[0]);
                     g_resource.resource_unit[i-1] = atoi(splited_resource[1]);
+
+                    // this copy is for later usage to count the hold;
+                    strcpy(g_resource_copy.resource_type[i-1],splited_resource[0]);
+                    g_resource_copy.resource_unit[i-1] = atoi(splited_resource[1]);
+
+                    num_resource++;
                     // cout << g_resource.resource_type[i-1] << endl;
                     // cout << g_resource.resource_unit[i-1] << endl;
                 }
@@ -335,10 +387,12 @@ void simulator(int argc, char** argv,int time_start_program){
             }
             
             if (strcmp(splited_str[0],"task") == 0){
+
+                
                 // cout << STRING << endl;
                 struct task_args new_task;
                 new_task.busyTime = atoi(splited_str[2]);
-                new_task.idleTime = atoi(splited_str[3]);;
+                new_task.idleTime = atoi(splited_str[3]);
                 // cout << "busyTime " << new_task.busyTime << endl;
                 // cout << "idleTime " << new_task.idleTime << endl;
                 // cout << "task_name " << splited_str[1]<< endl;
@@ -352,9 +406,11 @@ void simulator(int argc, char** argv,int time_start_program){
                     // cout << splited_str[i] << endl;
                     int value;
                     strcpy(new_task.jobs[task_args_inds],splited_str[i]);
+                    // strcpy(task_list.resource_required[num_tasks][task_args_inds],splited_str[i]);
                     task_args_inds++;
                 }
                 new_task.num_jobs = task_args_inds;
+                new_task.current_task_num = num_tasks;
                 // for (int i = 0; i <task_args_inds; i++){
                 //     if (new_task.jobs[i] != NULL){
                 //         cout << new_task.jobs[i] << endl;
@@ -380,8 +436,14 @@ void simulator(int argc, char** argv,int time_start_program){
                     pthread_join(task_tid,NULL);
                     exit(0);
                 }
-
+                // task_list
                 
+                strcpy(task_list.task_name[num_tasks],splited_str[1]);
+                task_list.busy_time[num_tasks] = atoi(splited_str[2]);
+                task_list.idle_time[num_tasks] = atoi(splited_str[3]);
+                task_list.num_type_resource[num_tasks] = task_args_inds;
+
+                num_tasks++;
             }
 
             // start a monitor thread? 
@@ -390,6 +452,23 @@ void simulator(int argc, char** argv,int time_start_program){
     pthread_join(ntid, NULL);
 
 
+    //The pthread_join() function waits for the thread specified by thread to terminate.
+    cout << "System Resources: " << endl;
+    for(int i = 0; i < num_resource; i++){
+        int hold_unit = g_resource_copy.resource_unit[i] - g_resource.resource_unit[i];
+        cout << "\t" << g_resource.resource_type[i] << ": (maxAvail= " << g_resource.resource_unit[i] << ", held= " << hold_unit << ")" << endl;
+    }
+
+    cout << "System Tasks: " << endl;
+    for(int i = 0; i < num_tasks; i++){
+        cout << "[" << i << "] (" << task_list.status[i] << ", runTime= " << task_list.busy_time[i] << " msec, idleTime= " << task_list.idle_time[i] << " msec):" << endl;
+        cout << "\t(tid= " << task_list.last_tid[i] << ")" << endl;
+        for (int j = 0; j < task_list.num_type_resource[i]; j++){
+            cout << "\t" << task_list.resource_required[i][j] << ": (needed= " << task_list.num_resource_required[i][j] << ", held= 0)" << endl;
+        }
+        cout << "\t(RUN: " << task_list.RUN[i] << " times, WAIT: " << task_list.WAIT_time[i] << " msec)" << endl;
+
+    }
 
 
 
@@ -416,6 +495,16 @@ void mutex_unlock (pthread_mutex_t* mutex)
     if (rval) {fprintf(stderr, "mutex_unlock: %s\n",strerror(rval)); exit(1);}
 }
 
+void delay (int x)                                 // milliseconds
+{
+  struct timespec interval;
+
+  interval.tv_sec =  (long) x / 1000;              // seconds 
+  interval.tv_nsec = (long) ((x % 1000) * 1E6);    // nanoseconds
+  //nanosleep -- suspend thread execution for an interval measured in nanoseconds
+  if (nanosleep(&interval, NULL) < 0)
+      printf("warning: delay: %s\n", strerror(errno));
+}
 
 void change_task_state(char *task_name, char *status){
 
