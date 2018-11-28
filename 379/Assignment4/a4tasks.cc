@@ -74,10 +74,13 @@ typedef struct tasks {
 } tasks;
 
 struct task_args {
+    int num_jobs;
+    int iter;
     char *task_name;
     int busyTime;
     int idleTime;
     char jobs[10][32];
+
 };
 
 // struct args {
@@ -104,6 +107,7 @@ struct task_args {
 //global variable declartion
 pthread_t ntid;
 time_t   program_start;
+int time_start_program;
 resource g_resource;
 tasks task_list;
 
@@ -173,6 +177,7 @@ void *monitor_thread(void *arg){
         cout << "monitor:" << wait_string << endl;
         cout << "        " << run_string  << endl;
         cout << "        " << idle_string  << endl;
+        cout << "..."                      << endl;
 
         // The sleep command suspends execution for a minimum of seconds.
         sleep(monitorTime/1000);
@@ -186,12 +191,21 @@ void *monitor_thread(void *arg){
 void *task_thread(void *argu){
     pid_t       pid;
     pthread_t   tid;
+
+    // time
+    time_t   current_time;
+    current_time = time(NULL);
+	int current_time_int = (long)current_time;
+
     int tid_int;
     pid = getpid();
     tid = pthread_self();           // return thread_id
     tid_int = (unsigned long)tid;
     struct task_args *coming_task = (task_args*) argu; // this only for g++
-
+    
+    int time_gap = (time_start_program - current_time_int) * 1000;
+    cout << "task " << &coming_task->task_name << "(tid= " << tid_int << ", iter= " << &coming_task->iter << ", time= " << time_gap << "msec)" << endl;
+    pthread_exit(NULL);
     return NULL;
 }
 
@@ -213,7 +227,7 @@ void simulator(int argc, char** argv,int time_start_program){
     err = pthread_create(&ntid, NULL, monitor_thread,  monitorTime_p);
     if (err != 0) { cout << "Can't create the monitor thread." << endl; exit(0); }
     else          { cout << "Moniter thread created!" << endl; }
-    pthread_join(ntid, NULL);
+    // pthread_join(ntid, NULL);
     
 	while (!inputFile.eof()){
 		getline(inputFile,STRING); 
@@ -238,7 +252,7 @@ void simulator(int argc, char** argv,int time_start_program){
             // cout<< num_words << endl;
             if(strcmp(splited_str[0],"resources") == 0){
                 memset( (char *) &g_resource, 0, sizeof(g_resource) );
-                cout << STRING << endl;
+                // cout << STRING << endl;
                 // create the resources array:
                 for(int i=1; i < num_words; i++){
                     int value;
@@ -255,6 +269,11 @@ void simulator(int argc, char** argv,int time_start_program){
                     // cout << g_resource.resource_type[i-1] << endl;
                     // cout << g_resource.resource_unit[i-1] << endl;
                 }
+                // for(int i = 0; i<10; i++){
+                //     cout << "g_resource.resource_type: " << g_resource.resource_type[i] << endl;
+                //     cout << "g_resource.resource_unit: " << g_resource.resource_unit[i] << endl;
+                // }
+                // exit(0);
             }
             
             if (strcmp(splited_str[0],"task") == 0){
@@ -262,35 +281,40 @@ void simulator(int argc, char** argv,int time_start_program){
                 struct task_args new_task;
                 new_task.busyTime = atoi(splited_str[2]);
                 new_task.idleTime = atoi(splited_str[3]);;
+                // cout << "busyTime " << new_task.busyTime << endl;
+                // cout << "idleTime " << new_task.idleTime << endl;
+                // cout << "task_name " << splited_str[1]<< endl;
+                new_task.task_name = new char[32];
                 strcpy(new_task.task_name,splited_str[1]);
                 // cout << "busyTime " << busyTime << endl;
                 // cout << "idleTime " << idleTime << endl;
-                // cout << "task_name" << task_name<< endl;
+                // cout << "task_name: " << new_task.task_name<< endl;
+                int task_args_inds = 0;
                 for (int i=4; i < num_words; i++){
-                    int task_args_inds = 0;
+                    // cout << splited_str[i] << endl;
                     int value;
-                    char *name_type = new char[32];
-                    char delimiter_resource[1];
-                    strcpy(delimiter_resource,":");
-                    char splited_resource[MAXLINE][MAXWORD];
-                    split(splited_str[i],splited_resource,delimiter_resource);
-                    
-                    value = atoi(splited_resource[1]);
-                    strcpy(name_type, splited_resource[0]);
-                    // cout << value << endl;
-                    // cout << name_type << endl;
                     strcpy(new_task.jobs[task_args_inds],splited_str[i]);
                     task_args_inds++;
                 }
-
+                new_task.num_jobs = task_args_inds;
+                // for (int i = 0; i <task_args_inds; i++){
+                //     if (new_task.jobs[i] != NULL){
+                //         cout << new_task.jobs[i] << endl;
+                //     }
+                //     cout << "new_task.jobs[i]: " <<new_task.jobs[i] << endl;
+                    
+                // }
+                // exit(0);
                 // create the NITER thread here
                 // for 0 -> NITER
                 //    create thread
                 //    join thread
                 // ref: https://stackoverflow.com/questions/16230542/passing-multiple-arguments-to-threaded-function-from-pthread-create
+                // exit(0);
                 pthread_t task_tid;
                 int errs;
                 for(int iter = 0; iter < NITER; iter++){
+                    new_task.iter = iter;
                     errs = pthread_create(&task_tid, NULL, task_thread, &new_task);
                     if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(0); }
                     else          { pthread_join(task_tid,NULL); }
@@ -302,6 +326,8 @@ void simulator(int argc, char** argv,int time_start_program){
             // start a monitor thread? 
         }
     }
+    pthread_join(ntid, NULL);
+
 
 
 
@@ -420,7 +446,7 @@ int main(int argc, char** argv)
 	//
     
     program_start = time(NULL);
-	int time_start_program = (long)program_start;
+	time_start_program = (long)program_start;
 
 	if (argc < 4){ cout << "Too little arguments " << endl; return 0;}
 	if (argc > 4){ cout << "Too many arguments "   << endl; return 0;}
