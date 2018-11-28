@@ -3,7 +3,7 @@
 
 // Other reference:
 // https://linux.die.net/man/3/poll
-
+#define _POSIX_C_SOURCE 200809L
 // C++
 #include <iostream>
 #include <sstream>
@@ -29,6 +29,9 @@
 #include <poll.h>
 #include <time.h>
 #include <pthread.h> 
+#include <inttypes.h>
+#include <math.h>
+#include <sys/time.h>
 
 
 using namespace std; 
@@ -53,6 +56,7 @@ void simulator(int argc, char** argv, int time_start_program);
 void split_name_value(char *string, int *value);
 void *monitor_thread(void * arg);  //thread function
 void *task_thread(void *argu);     //thread function 
+int get_time_gap();
 // define struct
 typedef struct { 
     char resource_type[10][32]; 
@@ -110,6 +114,10 @@ time_t   program_start;
 int time_start_program;
 resource g_resource;
 tasks task_list;
+
+struct timeval spec;
+int time_now_sec_start;
+int time_now_nanosec__start;
 
 
 
@@ -205,6 +213,9 @@ void *task_thread(void *argu){
     
     int busyTime = coming_task->busyTime;
     int idleTime = coming_task->idleTime;
+    int num_jobs = coming_task->num_jobs;
+    sleep(busyTime/1000);
+    // check resources and take resources
 
     cout << busyTime << "and idleTime: " << idleTime << endl;
     int time_gap = (time_start_program - current_time_int) * 1000;
@@ -361,7 +372,28 @@ void split_name_value(char *string, int *value){
 
 
 
+int get_time_gap(){
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    int time_now_sec = (long) now.tv_sec;
+    int time_now_nanosec = (long) now.tv_usec;
 
+    int time_sec = time_now_sec - time_now_sec_start;
+    int time_nano = time_now_nanosec - time_now_nanosec__start;
+
+    if (time_nano < 0){
+        time_sec  = time_sec - 1;
+        time_nano = time_nano + 100000;
+        int time_mil_sec = round(time_nano /1.0e3);
+        int final_time = time_sec*1000 + time_mil_sec;
+        return final_time;
+    }
+    else{
+        int time_mil_sec = round(time_mil_sec /1.0e3);
+        int final_time = time_sec*1000 + time_mil_sec;
+        return final_time;
+    }
+}
 
 // Ref: https://stackoverflow.com/questions/1726302/removing-spaces-from-a-string-in-c
 void RemoveSpaces(char* source)
@@ -451,8 +483,12 @@ int main(int argc, char** argv)
 { 
 	//
     
-    program_start = time(NULL);
-	time_start_program = (long)program_start;
+    // program_start = time(NULL);
+	// time_start_program = (long)program_start;
+
+    gettimeofday(&spec, NULL);
+    time_now_sec_start = (long) spec.tv_sec;
+    time_now_nanosec__start = (long) spec.tv_usec;
 
 	if (argc < 4){ cout << "Too little arguments " << endl; return 0;}
 	if (argc > 4){ cout << "Too many arguments "   << endl; return 0;}
