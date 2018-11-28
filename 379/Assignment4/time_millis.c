@@ -37,15 +37,22 @@ void print_current_time_with_ms (void)
     // printf("time_in_mill: %d",time_in_mill);
 }
 
-void get_time_today(){
+void get_time_gap(){
     struct timeval now;
     gettimeofday(&now, NULL);
-    int time_now = (long) now.tv_sec;
-    int time_now_2 = (long) now.tv_usec;
-
-    printf("time_now_in_sec: %d\n", time_now);
-    printf("time_now_in_: %d\n", time_now_2);
-
+    int time_now_sec = (long) now.tv_sec;
+    int time_now_nanosec = (long) now.tv_usec;
+    
+    if (time_nano < 0){
+        time - 1;
+        time_nano = time_nano + 100000;
+        int time_mil_sec = round(time_nano /1.0e3)
+        int final_time = time*1000 + time_mil_sec;
+    }
+    else{
+        int time_mil_sec = round(time_mil_sec /1.0e3)
+        int final_time = time*1000 + time_mil_sec;
+    }
 }
 int main(){
     // time_t program_start;

@@ -203,8 +203,13 @@ void *task_thread(void *argu){
     tid_int = (unsigned long)tid;
     struct task_args *coming_task = (task_args*) argu; // this only for g++
     
+    int busyTime = coming_task->busyTime;
+    int idleTime = coming_task->idleTime;
+
+    cout << busyTime << "and idleTime: " << idleTime << endl;
     int time_gap = (time_start_program - current_time_int) * 1000;
-    cout << "task " << &coming_task->task_name << "(tid= " << tid_int << ", iter= " << &coming_task->iter << ", time= " << time_gap << "msec)" << endl;
+    cout << "task " << coming_task->task_name << " (tid= " << tid_int << ", iter= " << coming_task->iter << ", time= " << time_gap << "msec)" << endl;
+    
     pthread_exit(NULL);
     return NULL;
 }
@@ -318,6 +323,7 @@ void simulator(int argc, char** argv,int time_start_program){
                     errs = pthread_create(&task_tid, NULL, task_thread, &new_task);
                     if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(0); }
                     else          { pthread_join(task_tid,NULL); }
+                    exit(0);
                 }
 
                 
