@@ -1,5 +1,5 @@
 // example command:
-// ./a4tasks inputFile 100 20
+// ./a4tasks inputFile 1000 20
 
 // Other reference:
 // https://linux.die.net/man/3/poll
@@ -57,6 +57,11 @@ void split_name_value(char *string, int *value);
 void *monitor_thread(void * arg);  //thread function
 void *task_thread(void *argu);     //thread function 
 int get_time_gap();
+void change_task_state(char *task_name, char *status);
+void mutex_init (pthread_mutex_t* mutex);
+void mutex_lock (pthread_mutex_t* mutex);
+void mutex_unlock (pthread_mutex_t* mutex);
+
 // define struct
 typedef struct { 
     char resource_type[10][32]; 
@@ -109,8 +114,9 @@ struct task_args {
 
 
 //global variable declartion
+
 pthread_t ntid;
-time_t   program_start;
+pthread_mutex_t  create_mutex;
 int time_start_program;
 resource g_resource;
 tasks task_list;
@@ -120,8 +126,9 @@ int time_now_sec_start;
 int time_now_nanosec__start;
 
 
-
-
+char *IDLE = new char[10]; 
+char *WAIT = new char[10]; 
+char *RUN  = new char[10];
 
     // tid is the thread’s ID (of type pthread_t)
     // pthread_t thread_id; 
@@ -208,6 +215,7 @@ void *task_thread(void *argu){
     int tid_int;
     pid = getpid();
     tid = pthread_self();           // return thread_id
+    
     tid_int = (unsigned long)tid;
     struct task_args *coming_task = (task_args*) argu; // this only for g++
     
@@ -215,12 +223,39 @@ void *task_thread(void *argu){
     int idleTime = coming_task->idleTime;
     int num_jobs = coming_task->num_jobs;
     sleep(busyTime/1000);
+    mutex_lock(&create_mutex);
+    change_task_state(coming_task->task_name, RUN);
     // check resources and take resources
+    for (int i = 0; i < num_jobs; i++){
+        // cout << coming_task->jobs[i] << endl;
+        int value;
+        char *name_type = new char[32];
+        char delimiter_resource[1];
+        strcpy(delimiter_resource,":");
+        char splited_resource[MAXLINE][MAXWORD];
+        split(coming_task->jobs[i],splited_resource,delimiter_resource);
 
-    cout << busyTime << "and idleTime: " << idleTime << endl;
-    int time_gap = (time_start_program - current_time_int) * 1000;
-    cout << "task " << coming_task->task_name << " (tid= " << tid_int << ", iter= " << coming_task->iter << ", time= " << time_gap << "msec)" << endl;
+        value = atoi(splited_resource[1]);
+        strcpy(name_type, splited_resource[0]);
+        // cout << name_type << endl;
+
+    }
+
+    // cout << busyTime << "and idleTime: " << idleTime << endl;
+    int time_gap = get_time_gap();
+    cout << "task " << coming_task->task_name << " (tid= " << tid_int << ", iter= " << coming_task->iter << ", time= " << time_gap << " msec)" << endl;
     
+    // change state of task to idle
+    // for(int i = 0; i < 25; i++){
+    //     if (strcmp(coming_task->task_name,task_list.task_name[i])==0){
+    //         // find the task inds; change the status
+    //         strcpy(task_list.status[i],"IDLE");
+    //     }
+    // }
+
+    mutex_unlock (&create_mutex);                       // unlock the mutex
+    change_task_state(coming_task->task_name, IDLE);    // enter the idle state
+    sleep(idleTime/1000);   //idleTime 
     pthread_exit(NULL);
     return NULL;
 }
@@ -245,6 +280,11 @@ void simulator(int argc, char** argv,int time_start_program){
     else          { cout << "Moniter thread created!" << endl; }
     // pthread_join(ntid, NULL);
     
+    // initial_mutex
+    mutex_init(&create_mutex);
+
+
+
 	while (!inputFile.eof()){
 		getline(inputFile,STRING); 
         // cout << STRING << endl;
@@ -289,6 +329,8 @@ void simulator(int argc, char** argv,int time_start_program){
                 //     cout << "g_resource.resource_type: " << g_resource.resource_type[i] << endl;
                 //     cout << "g_resource.resource_unit: " << g_resource.resource_unit[i] << endl;
                 // }
+                // lock the resources;
+
                 // exit(0);
             }
             
@@ -328,12 +370,14 @@ void simulator(int argc, char** argv,int time_start_program){
                 // ref: https://stackoverflow.com/questions/16230542/passing-multiple-arguments-to-threaded-function-from-pthread-create
                 // exit(0);
                 pthread_t task_tid;
+                
                 int errs;
                 for(int iter = 0; iter < NITER; iter++){
                     new_task.iter = iter;
+                    
                     errs = pthread_create(&task_tid, NULL, task_thread, &new_task);
                     if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(0); }
-                    else          { pthread_join(task_tid,NULL); }
+                    pthread_join(task_tid,NULL);
                     exit(0);
                 }
 
@@ -353,10 +397,36 @@ void simulator(int argc, char** argv,int time_start_program){
 }
 
 
+// ref: eclass
+void mutex_init (pthread_mutex_t* mutex)
+{
+    int rval= pthread_mutex_init(mutex, NULL);
+    if (rval) {fprintf(stderr, "mutex_init: %s\n",strerror(rval)); exit(1); }
+}    
+// ref: eclass
+void mutex_lock (pthread_mutex_t* mutex)
+{
+    int rval= pthread_mutex_lock(mutex);
+    if (rval) {fprintf(stderr, "mutex_lock: %s\n",strerror(rval)); exit(1); }
+}    
+// ref: eclass
+void mutex_unlock (pthread_mutex_t* mutex)
+{
+    int rval= pthread_mutex_unlock(mutex);
+    if (rval) {fprintf(stderr, "mutex_unlock: %s\n",strerror(rval)); exit(1);}
+}
 
 
+void change_task_state(char *task_name, char *status){
 
+    for(int i = 0; i < 25; i++){
+        if (strcmp(task_name,task_list.task_name[i])==0){
+            // find the task inds; change the status
+            strcpy(task_list.status[i],status);
+        }
+    }
 
+}
 
 void split_name_value(char *string, int *value){
     char delimiter_resource[1];
@@ -489,6 +559,10 @@ int main(int argc, char** argv)
     gettimeofday(&spec, NULL);
     time_now_sec_start = (long) spec.tv_sec;
     time_now_nanosec__start = (long) spec.tv_usec;
+
+    strcpy(IDLE,"IDLE");
+    strcpy(WAIT,"WAIT");
+    strcpy(RUN,"RUN");
 
 	if (argc < 4){ cout << "Too little arguments " << endl; return 0;}
 	if (argc > 4){ cout << "Too many arguments "   << endl; return 0;}
