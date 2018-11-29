@@ -433,6 +433,22 @@ void simulator(int argc, char** argv,int time_start_program){
                 //    join thread
                 // ref: https://stackoverflow.com/questions/16230542/passing-multiple-arguments-to-threaded-function-from-pthread-create
                 // exit(0);
+                
+
+                // create thread for each task;
+                // each task run ITER iterations;
+                // after taking the resource, and idle, then go back run again;
+                // for (i < ITER){
+                        // while(1){
+                        //     if resource is taken:
+                        //         wait for resource;
+                        // }
+                // }
+
+                // monitor: if there is no more jobs, terminate the while loop
+                // then it will perform pthread_join
+                // the it will print out the task
+                //
                 pthread_t task_tid;
                 
                 int errs;
@@ -441,7 +457,7 @@ void simulator(int argc, char** argv,int time_start_program){
                     
                     errs = pthread_create(&task_tid, NULL, task_thread, &new_task);
                     if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(0); }
-                    pthread_join(task_tid,NULL);
+                    // pthread_join(task_tid,NULL);
                     
                 }
                 // for (idx = START; idx < START + COUNT; idx++) {

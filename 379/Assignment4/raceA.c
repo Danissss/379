@@ -19,7 +19,10 @@
 #define START   100
 #define COUNT   NTHREAD
 
-pthread_t  TID[NTHREAD];
+
+int NTER;
+
+pthread_t  TID[NTER];
 // ------------------------------
 void *athread(void *arg)
 {
@@ -39,7 +42,6 @@ int main(int argc, char *argv[])
   int       rval;
   long      idx;
   pthread_t ntid;
-  
   for (idx = START; idx < START + COUNT; idx++) {
       rval = pthread_create(&ntid, NULL, athread, (void *)idx);
       if (rval) {
