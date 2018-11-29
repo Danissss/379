@@ -26,6 +26,10 @@ void *athread(void *arg)
   long  threadNum= (long) arg; 
 
   TID[threadNum - START] = pthread_self();
+  pthread_t tid;
+  tid = pthread_self();
+  printf("pthread_self: number= %ld, ID= %lu \n", threadNum,tid);
+  printf("thread: number= %ld, ID= %lu \n", threadNum, TID[threadNum-START]);
   printf("thread: number= %ld, ID= %lu \n", threadNum, TID[threadNum-START]);
   pthread_exit(NULL);
 }

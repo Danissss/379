@@ -15,6 +15,7 @@
 #include <string>
 #include <cstdlib>
 // C
+#include <errno.h>
 #include <sys/socket.h> 
 #include <stdlib.h>
 #include <stdio.h>
@@ -90,7 +91,7 @@ typedef struct tasks {
     //rest of field is for later print system info;
     int RUN[25];         // record num of runs/iteration
     int WAIT_time[25];   // record total waiting time;
-    int last_tid[25];    // record the last tid for the task;
+    long last_tid[25];    // record the last tid for the task;
 
     char resource_required[25][10][32];     // record name of required resource
     int num_resource_required[25][10];   // record unit of required resource
@@ -138,6 +139,7 @@ struct task_args {
 //global variable declartion
 
 pthread_t ntid;
+// pthread_t TID[NTHREAD];
 pthread_mutex_t  create_mutex;
 int time_start_program;
 int num_resource;
@@ -148,8 +150,8 @@ int num_tasks;
 tasks task_list;
 
 struct timeval spec;
-int time_now_sec_start;
-int time_now_nanosec__start;
+long time_now_sec_start;
+long time_now_nanosec_start;
 
 
 char *IDLE = new char[10]; 
@@ -165,11 +167,11 @@ void *monitor_thread(void *arg){
     int monitorTime = *(int*)arg;
     pid_t       pid;
     pthread_t   tid;
-    int tid_int;
     pid = getpid();
     tid = pthread_self();           // return thread_id
-    tid_int = (unsigned long)tid;
+    long tid_int = (long)tid;
     //most 25 task
+
     while(1){
         char wait_list[25][32];
         char run_list[25][32];
@@ -179,8 +181,8 @@ void *monitor_thread(void *arg){
         int wait_inds = 0;
         int run_inds  = 0;
         int idle_inds = 0;
-        for (int i = 0; i<25; i++){
-            if (task_list.status[i] != NULL){
+        for (int i = 0; i<num_tasks; i++){
+            // cout << task_list.task_name[i] << endl;
                 if (strcmp(task_list.status[i],"WAIT")==0){
                     strcpy(wait_list[wait_inds],task_list.task_name[i]);
                     wait_inds++;
@@ -193,7 +195,7 @@ void *monitor_thread(void *arg){
                     strcpy(idle_list[idle_inds],task_list.task_name[i]);
                     idle_inds++;
                 }
-            }
+            
         }
         // print the current status:
         char *wait_string = new char[100];
@@ -219,12 +221,12 @@ void *monitor_thread(void *arg){
         cout << "        " << run_string  << endl;
         cout << "        " << idle_string  << endl;
         cout << "..."                      << endl;
-
+    
         // The sleep command suspends execution for a minimum of seconds.
         // sleep(monitorTime/1000);
         delay(monitorTime);
     }
-    return NULL;
+    
 }
 
 
@@ -239,11 +241,12 @@ void *task_thread(void *argu){
     current_time = time(NULL);
 	int current_time_int = (long)current_time;
 
-    int tid_int;
     pid = getpid();
     tid = pthread_self();           // return thread_id
-    
-    tid_int = (unsigned long)tid;
+
+
+    long  threadNum= (long) tid;
+    // cout << "threadNum: " << threadNum << endl;
     struct task_args *coming_task = (task_args*) argu; // this only for g++
     
     int current_task_num = coming_task->current_task_num;
@@ -252,7 +255,8 @@ void *task_thread(void *argu){
     int num_jobs = coming_task->num_jobs;
 
     // count wait time at this point since mutex_lock will be block if the create_mutex is locked;
-
+    change_task_state(coming_task->task_name, WAIT);
+    
     mutex_lock(&create_mutex);
 
     // get total wait time for this thread for the task, then increment to 
@@ -281,7 +285,7 @@ void *task_thread(void *argu){
     // cout << busyTime << "and idleTime: " << idleTime << endl;
     int time_gap = get_time_gap();
     
-    cout << "task " << coming_task->task_name << " (tid= " << tid_int << ", iter= " << coming_task->iter << ", time= " << time_gap << " msec)" << endl;
+    cout << "task " << coming_task->task_name << " (tid= " << threadNum << ", iter= " << coming_task->iter << ", time= " << time_gap << " msec)" << endl;
     
     // change state of task to idle
     // for(int i = 0; i < 25; i++){
@@ -291,15 +295,19 @@ void *task_thread(void *argu){
     //     }
     // }
 
-    mutex_unlock (&create_mutex);                       // unlock the mutex
+    mutex_unlock(&create_mutex);                       // unlock the mutex
     change_task_state(coming_task->task_name, IDLE);    // enter the idle state
+
     delay(idleTime);        // idleTime in millisecond
     // sleep(idleTime/1000);   //idleTime 
     
-    task_list.last_tid[current_task_num] = tid_int;
+    task_list.last_tid[current_task_num] = threadNum;
     task_list.RUN[current_task_num] = coming_task->iter;
     pthread_exit(NULL);
     return NULL;
+
+
+
 }
 
 void simulator(int argc, char** argv,int time_start_program){
@@ -434,8 +442,15 @@ void simulator(int argc, char** argv,int time_start_program){
                     errs = pthread_create(&task_tid, NULL, task_thread, &new_task);
                     if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(0); }
                     pthread_join(task_tid,NULL);
-                    exit(0);
+                    
                 }
+                // for (idx = START; idx < START + COUNT; idx++) {
+                //     rval = pthread_create(&ntid, NULL, athread, (void *)idx);
+                //     if (rval) {
+                //         fprintf(stderr, "pthread_create: %s\n", strerror(rval));
+                //         exit(1);
+                //     }
+                // }
                 // task_list
                 
                 strcpy(task_list.task_name[num_tasks],splited_str[1]);
@@ -509,6 +524,7 @@ void delay (int x)                                 // milliseconds
 void change_task_state(char *task_name, char *status){
 
     for(int i = 0; i < 25; i++){
+
         if (strcmp(task_name,task_list.task_name[i])==0){
             // find the task inds; change the status
             strcpy(task_list.status[i],status);
@@ -534,21 +550,29 @@ void split_name_value(char *string, int *value){
 int get_time_gap(){
     struct timeval now;
     gettimeofday(&now, NULL);
-    int time_now_sec = (long) now.tv_sec;
-    int time_now_nanosec = (long) now.tv_usec;
+    long time_now_sec = (long) now.tv_sec;       // in second
+    long time_now_nanosec = (long) now.tv_usec;  // in nano second
+    // cout << "time_now_sec: " <<  time_now_sec << endl;
+    // cout << "time_now_nanosec: " <<  time_now_nanosec << endl;
+    long time_sec = time_now_sec - time_now_sec_start;
 
-    int time_sec = time_now_sec - time_now_sec_start;
-    int time_nano = time_now_nanosec - time_now_nanosec__start;
+    long time_nano = time_now_nanosec - time_now_nanosec_start;
+
 
     if (time_nano < 0){
         time_sec  = time_sec - 1;
-        time_nano = time_nano + 100000;
-        int time_mil_sec = round(time_nano /1.0e3);
+        time_nano = time_nano + 1000000;
+        // cout << "time_nano: " << time_nano <<  endl;
+        int time_mil_sec = round(time_nano / 1000);
+        // cout << "time_mil_sec: " << time_mil_sec <<  endl;
         int final_time = time_sec*1000 + time_mil_sec;
+        // cout << "time_mil_sec: " << time_mil_sec <<  endl;
+        // cout << "final_time "    << final_time << endl;
         return final_time;
     }
     else{
-        int time_mil_sec = round(time_mil_sec /1.0e3);
+        int time_mil_sec = round(time_nano /1000);
+        // cout << "time_mil_sec (time_nano > 0): " << time_mil_sec <<  endl;
         int final_time = time_sec*1000 + time_mil_sec;
         return final_time;
     }
@@ -647,7 +671,7 @@ int main(int argc, char** argv)
 
     gettimeofday(&spec, NULL);
     time_now_sec_start = (long) spec.tv_sec;
-    time_now_nanosec__start = (long) spec.tv_usec;
+    time_now_nanosec_start = (long) spec.tv_usec;
 
     strcpy(IDLE,"IDLE");
     strcpy(WAIT,"WAIT");
