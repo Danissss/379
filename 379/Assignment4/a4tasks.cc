@@ -236,7 +236,7 @@ void *monitor_thread(void *arg){
         // if there is no more jobs, exit while loop;
         if(remaining_tasks == 0){
             // break
-            return NULL;
+            pthread_exit(NULL);
         }
         delay(monitorTime);
     }
@@ -254,7 +254,7 @@ void *task_thread(void *argu){
     time_t   current_time;
     current_time = time(NULL);
 	int current_time_int = (long)current_time;
-
+    
     pid = getpid();
     tid = pthread_self();           // return thread_id
 
@@ -273,32 +273,37 @@ void *task_thread(void *argu){
     TID[current_task_num] = tid;                // store tid into TID array
     
     // check resources and take resources
-    cout << "num_jobs: " << num_jobs << endl;
+    // cout << "num_jobs: " << num_jobs << endl;
     char resource_name[num_jobs][32];
     int resource_unit[num_jobs];
-
+    cout << "HERE1" << endl;
+    cout << num_jobs << endl;
     // store the task type into array;
     for (int i = 0; i < num_jobs; i++){
-        char delimiter_resource[1];
+        char *delimiter_resource = new char[1];
+        // cout <<"num_jobs" <<  num_jobs << endl;
+        // cout <<"i" << i << endl;
         strcpy(delimiter_resource,":");
         char splited_resource[MAXLINE][MAXWORD];
         split(coming_task->jobs[i],splited_resource,delimiter_resource);
 
         resource_unit[i] = atoi(splited_resource[1]);
         strcpy(resource_name[i], splited_resource[0]);
-
+        
     }
-
+    cout << "HERE2" << endl;
     int task_iter = 0;
     int total_wait_time = 0;
     while (task_iter < iteration){
 
     
         // count wait time at this point since mutex_lock will be block if the create_mutex is locked;
+        
+        
         change_task_state(task_name, WAIT);
         int start_wait = get_time_gap();
 
-
+        
         mutex_lock(&create_mutex);
 
         int end_wait  = get_time_gap();
@@ -309,10 +314,56 @@ void *task_thread(void *argu){
         // task_list.WAIT_time[current_task_num] = task_list.WAIT_time[current_task_num] + total_wait_time;
         // take resources;
 
-        delay(busyTime);
-
-    
+        // delay(busyTime);
+        // set up the flag for determine whether the resource is allocated
+        //typedef struct { 
+        // char resource_type[10][32]; 
+        // int resource_unit[10]; 
+        // } resource;
         
+        int get = 1;
+        while(get){
+            int expected[10];
+            int real_get[10];
+            for(int inds = 0; inds < num_jobs; inds++){
+                char *single_resource_name = new char[32];
+                expected[inds] = resource_unit[inds];
+                strcpy(single_resource_name,resource_name[inds]);
+                for(int res_inds = 0; res_inds < num_resource; res_inds++){
+                    if(strcmp(g_resource.resource_type[res_inds],single_resource_name)==0){
+                        // find the same resource type
+                        // get current unit of resource
+                        int current_resource_unit = g_resource.resource_unit[res_inds];
+                        int left_unit = current_resource_unit - expected[inds];
+                        if(left_unit < 0){
+                            // there is no enough unit for the resource type;
+                            // wait for the resource; go back to wait;
+                            continue;
+                        }
+                        else{
+                            // there is enough unit; take it 
+                            g_resource.resource_unit[res_inds] = left_unit;
+                        }
+                    }
+                }
+            }
+            get = 0;
+        }
+
+        delay(busyTime);            
+        // after eating time, return the unit back;
+
+        for(int inds = 0; inds < num_jobs; inds++){
+            char *single_resource_name = new char[32];
+            // resource_unit[inds]; is the desired unit for current resource type
+            strcpy(single_resource_name,resource_name[inds]);
+            for(int res_inds = 0; res_inds < num_resource; res_inds++){
+                if(strcmp(g_resource.resource_type[res_inds],single_resource_name)==0){
+                    // find the same resource type; give back to the resource
+                    g_resource.resource_unit[res_inds] = g_resource.resource_unit[res_inds] + resource_unit[inds];
+                }
+            }
+        }
 
         // cout << busyTime << "and idleTime: " << idleTime << endl;
         int time_gap = get_time_gap();
@@ -341,7 +392,7 @@ void *task_thread(void *argu){
     task_list.WAIT_time[current_task_num]   = total_wait_time;
 
     pthread_exit(NULL);
-    return NULL;
+    
 
 
 
@@ -459,7 +510,7 @@ void simulator(int argc, char** argv,int time_start_program){
 
                 // cout << "busyTime " << busyTime << endl;
                 // cout << "idleTime " << idleTime << endl;
-                cout << "task_name: " << new_task.task_name << endl;
+                // cout << "task_name: " << new_task.task_name << endl;
                 int task_args_inds = 0;
                 for (int i=4; i < num_words; i++){
                     // cout << splited_str[i] << endl;
@@ -495,7 +546,10 @@ void simulator(int argc, char** argv,int time_start_program){
                 int errs;
                 errs = pthread_create(&task_tid, NULL, task_thread, (void*)&new_task);
                 if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(1); }
-                   
+                // cout << "HERE " << endl;
+
+                errs = pthread_join(task_tid,NULL);
+                if (errs < 0) { cout << "Thread join failed. Exiting..." << endl; exit(1); }
                 // task_list
 
                 strcpy(task_list.task_name[num_tasks],splited_str[1]);
@@ -508,11 +562,11 @@ void simulator(int argc, char** argv,int time_start_program){
             }
 
             // start a monitor thread? 
-            cout << "TID[num_tasks]: " <<  TID[num_tasks] << endl;
+            // cout << "TID[num_tasks]: " <<  TID[num_tasks] << endl;
         }
     }
     cout << "num_tasks: " << num_tasks << endl;
-    remaining_tasks = num_tasks;
+    // remaining_tasks = num_tasks;
     // for(int i = 0 ; i < num_tasks; i++){
     //     int rval;
     //     rval = pthread_join(TID[num_tasks],NULL);
