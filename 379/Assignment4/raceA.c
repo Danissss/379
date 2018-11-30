@@ -20,9 +20,8 @@
 #define COUNT   NTHREAD
 
 
-int NTER;
 
-pthread_t  TID[NTER];
+pthread_t  TID[NTHREAD];
 // ------------------------------
 void *athread(void *arg)
 {
