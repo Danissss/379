@@ -56,6 +56,7 @@ void *athread(void *arg)
   TID[threadNum-START] = pthread_self();
 
   printf("thread: number= %ld, ID= %lu \n", threadNum, TID[threadNum-START]);
+  
   delay(10);	  	       	   //simulate doing something
   
   mutex_unlock (&create_mutex);
@@ -80,6 +81,7 @@ int main(int argc, char *argv[])
   }
 
   for (idx = 0; idx < COUNT; idx++) {
+      printf("TID[idx]: %p\n",TID[idx]);
       rval = pthread_join(TID[idx], NULL);
       if (rval) {
           fprintf(stderr, "\n** pthread_join: %s\n", strerror(rval));

@@ -185,8 +185,9 @@ void *monitor_thread(void *arg){
     tid = pthread_self();           // return thread_id
     long tid_int = (long)tid;
     //most 25 task
-
+    // cout << "here" << endl;
     while(1){
+        // cout << "here2" << endl;
         char wait_list[25][32];
         char run_list[25][32];
         char idle_list[25][32];
@@ -195,9 +196,12 @@ void *monitor_thread(void *arg){
         int wait_inds = 0;
         int run_inds  = 0;
         int idle_inds = 0;
+        // cout << "num_tasks: " << num_tasks << endl;
         for (int i = 0; i<num_tasks; i++){
-            // cout << task_list.task_name[i] << endl;
+            // cout << "task_list.status[i]: " << task_list.status[i] << endl;
+            
                 if (strcmp(task_list.status[i],"WAIT")==0){
+
                     strcpy(wait_list[wait_inds],task_list.task_name[i]);
                     wait_inds++;
                 }
@@ -242,7 +246,7 @@ void *monitor_thread(void *arg){
     
         // if there is no more jobs, exit while loop;
         // cout << "remaining_tasks: " << remaining_tasks << endl; // 0
-        if(remaining_tasks == 0){
+        if(remaining_tasks == -1){
             // break
             pthread_exit(NULL);
         }
@@ -253,9 +257,8 @@ void *monitor_thread(void *arg){
 
 
 // issue:
-// all thread num are same
-// can't monitor
-// how to use pthread_join?
+// all task time is the same
+// why the TID stored the info about at the end TID[] is 0x00
 
 
 void *task_thread(void *argu){
@@ -273,23 +276,39 @@ void *task_thread(void *argu){
     
     long  threadNum= (long) tid;
     // cout << "threadNum: " << threadNum << endl;
-    struct task_args *coming_task = (struct task_args*) argu; // this only for g++
+    struct task_args *dup = (struct task_args*) argu; // this only for g++
+    struct task_args *coming_task = new task_args;
+
+    coming_task->busyTime = dup->busyTime;
+    coming_task->idleTime = dup->idleTime;
+    coming_task->num_jobs = dup->num_jobs;
+    coming_task->current_task_num = dup->current_task_num;
+    coming_task->task_name = new char[32];
+    strcpy(coming_task->task_name,dup->task_name);
+    
+
     
     int current_task_num = coming_task->current_task_num;
+    cout << "current_task_num: " << current_task_num << endl; 
     char *task_name = new char[32];
     strcpy(task_name,coming_task->task_name);
     // cout << "task_name: " << task_name << endl;
     int busyTime = coming_task->busyTime;
     int idleTime = coming_task->idleTime;
     int num_jobs = coming_task->num_jobs;
-    TID[current_task_num] = tid;                // store tid into TID array
+    TID[current_task_num] = pthread_self();            // store tid into TID array
+
+
+    // cout << "current_task_num: " << current_task_num << endl;
+    // cout << "threadNum: " << tid << endl;
+    // cout << "TID[current_task_num]: " << TID[current_task_num] << endl;
     
     // check resources and take resources
     // cout << "num_jobs: " << num_jobs << endl;
     char resource_name[num_jobs][32];
     int resource_unit[num_jobs];
-    // cout << "HERE1" << endl;
-    cout << num_jobs << endl;
+    
+    // cout << num_jobs << endl;
     // store the task type into array;
     for (int i = 0; i < num_jobs; i++){
         char *delimiter_resource = new char[1];
@@ -385,7 +404,8 @@ void *task_thread(void *argu){
         int time_gap = get_time_gap();
         
         //cout << "task " << coming_task->task_name << " (tid= " << threadNum << ", iter= " << task_iter << ", time= " << time_gap << " msec)" << endl;
-        cout << "task " << task_name << " (tid= " << threadNum << ", iter= " << task_iter << ", time= " << time_gap << " msec)" << endl;
+        printf("task %s (tid= %lu, iter= %d, time= %d msec)\n",task_name,threadNum,task_iter,time_gap);
+        // cout << "task " << task_name << " (tid= " << threadNum << ", iter= " << task_iter << ", time= " << time_gap << " msec)" << endl;
         
         
 
@@ -511,20 +531,27 @@ void simulator(int argc, char** argv,int time_start_program){
 
                 
                 // cout << STRING << endl;
-                struct task_args new_task;
+                // struct task_args* new_task = malloc(sizeof *new_task); 
+                struct task_args *new_task;
+                new_task = new task_args;
+                // task_args* new_task = new task_args;
+                // memset( (char *) &new_task, 0, sizeof(new_task) );
+                // cout << "new_task address: " << &new_task << endl;
                 // memset( (char *) &new_task, 0, sizeof(new_task) );
 
-
-
-                new_task.busyTime = atoi(splited_str[2]);
-                new_task.idleTime = atoi(splited_str[3]);
-
-                // cout << "busyTime " << new_task.busyTime << endl;
-                // cout << "idleTime " << new_task.idleTime << endl;
-                // cout << "task_name " << splited_str[1]<< endl;
-                new_task.task_name = new char[32];
-
-                strcpy(new_task.task_name,splited_str[1]);
+                
+                new_task->busyTime = atoi(splited_str[2]);
+                new_task->idleTime = atoi(splited_str[3]);
+                // new_task.busyTime = atoi(splited_str[2]);
+                // new_task.idleTime = atoi(splited_str[3]);
+              
+            
+                new_task->task_name = new char[32];
+                
+                strcpy(new_task->task_name,splited_str[1]);
+                
+                // new_task.task_name = new char[32];
+                // strcpy(new_task.task_name,splited_str[1]);
 
                 // cout << "busyTime " << busyTime << endl;
                 // cout << "idleTime " << idleTime << endl;
@@ -537,14 +564,17 @@ void simulator(int argc, char** argv,int time_start_program){
                     char splited_resource_task[MAXLINE][MAXWORD];
                     split(splited_str[i],splited_resource_task,delimiter);
 
-                    strcpy(new_task.jobs[task_args_inds],splited_str[i]);
+                    strcpy(new_task->jobs[task_args_inds],splited_str[i]);
+                    // strcpy(new_task.jobs[task_args_inds],splited_str[i]);
                     strcpy(task_list.resource_required[num_tasks][task_args_inds],splited_resource_task[0]);
                     task_list.num_resource_required[num_tasks][task_args_inds] = atoi(splited_resource_task[1]);
                     task_args_inds++;
                     // free(splited_resource);
                 }
-                new_task.num_jobs = task_args_inds;
-                new_task.current_task_num = num_tasks;
+                new_task->num_jobs = task_args_inds;
+                new_task->current_task_num = num_tasks;
+                // new_task.num_jobs = task_args_inds;
+                // new_task.current_task_num = num_tasks;
 
                 // copy the task name into the task_list
                 strcpy(task_list.task_name[num_tasks],splited_str[1]);
@@ -553,7 +583,7 @@ void simulator(int argc, char** argv,int time_start_program){
                 task_list.idle_time[num_tasks] = atoi(splited_str[3]);
                 task_list.num_type_resource[num_tasks] = task_args_inds;
                 // ref: https://stackoverflow.com/questions/16230542/passing-multiple-arguments-to-threaded-function-from-pthread-create
-
+                
                 // create thread for each task;
                 // each task run ITER iterations;
                 // after taking the resource, and idle, then go back run again;
@@ -568,13 +598,13 @@ void simulator(int argc, char** argv,int time_start_program){
                 pthread_t task_tid;
                 
                 int errs;
-                errs = pthread_create(&task_tid, NULL, task_thread, (void*)&new_task);
+                errs = pthread_create(&task_tid, NULL, task_thread, (void *) new_task);
                 if (errs < 0) { cout << "Thread creation failed. Exiting..." << endl; exit(1); }
                 // cout << "HERE " << endl;
 
-                errs = pthread_join(task_tid,NULL);
-                if (errs < 0) { cout << "Thread join failed. Exiting..." << endl; exit(1); }
-                // task_list
+                // errs = pthread_join(task_tid,NULL);
+                // if (errs < 0) { cout << "Thread join failed. Exiting..." << endl; exit(1); }
+                // // task_list
 
                 
                 
@@ -590,16 +620,26 @@ void simulator(int argc, char** argv,int time_start_program){
     }
     // cout << "num_tasks: " << num_tasks << endl;
     remaining_tasks = num_tasks;
-    // for(int i = 0 ; i < num_tasks; i++){
-    //     int rval;
-    //     rval = pthread_join(TID[num_tasks],NULL);
-    //     if (rval) {
-    //         fprintf(stderr, "\n** pthread_join: %s\n", strerror(rval));
-    //         exit(1);
-    //     }
-    //     remaining_tasks--;
-    // }
+    while(remaining_tasks!=0){
+        // cout << "remaining_tasks end: " << remaining_tasks << endl;
+        
+        for(int i = 0 ; i < num_tasks; i++){
+            // cout << "TID[num_tasks]  " << TID[num_tasks] << endl;
+            // cout << "i: " << i << endl;
+            int rval;
+            rval = pthread_join(TID[i],NULL);
+            if (rval!= 0) {
+                continue;
+            }
+            else{
+                remaining_tasks--;
+                cout << TID[num_tasks] << "EXITED" << endl;
+            }
+            
+        }
+    }
     // monitor thread ended; pthread_join monitor thread tid
+    remaining_tasks--;
     pthread_join(ntid, NULL);
 
 
@@ -829,6 +869,9 @@ int main(int argc, char** argv)
     strcpy(IDLE,"IDLE");
     strcpy(WAIT,"WAIT");
     strcpy(RUN,"RUN");
+    // cout << "strcmp(task_list.status[i],\"IDLE\") " << strcmp(IDLE,"IDLE") << endl; 
+    // cout << "strcmp(task_list.status[i],\"WAIT\") " << strcmp(WAIT,"WAIT") << endl; 
+    // cout << "strcmp(task_list.status[i],\"IDLE\") " << strcmp(RUN,"RUN") << endl; 
 
 	if (argc < 4){ cout << "Too little arguments " << endl; return 0;}
 	if (argc > 4){ cout << "Too many arguments "   << endl; return 0;}
