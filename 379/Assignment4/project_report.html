@@ -7,7 +7,10 @@
 	<h1>Objectives</h1>
 	<p>
         This project give me  the experience of developing multithreaded programs that require thread <br>
-        synchronization and deadlock prevention.
+		synchronization and deadlock prevention. In order to protect the critical section during the <br>
+		multithreading, using the semaphores our mutex implementation could efficiently prevent one <br>
+		section (e.g. critical section) to be accessed by multiple threads at the same time, which prevent <br>
+		the race condition and deadlock during multithreading.
 	</p>
 
 
@@ -16,19 +19,25 @@
 	<p>
 		<ul>
 			<li>
-				There is only one controller and 7 switches exist, which controller will listen all 7 switches and be able to recieve the message (e.g. requesting for open port) from swithes and also need to send back message (e.g. allow for connection). My program can indeed create a controller and numbers of switches that can communicate with each other through fifo. My switch will send open request to controller; and controller will send switches the allowance message for confirmation.
+				Multithread creation is done by pthread_create and pthread_join from pthread library from linux. <br>
+				The preventation of race condition is done by calling the API of mutex, such as mutex_lock and <br>
+				mutex_unlock.
 			</li>
 			<li>
-				My program also can recieve multi-I/O from different sources without interruption.
+				Program may have up to 10 resource types, and 25 tasks. A task or a resource type name has at most 32 characters. <br>
+				Each white space between fields is composed of one, or more, space character(s), and there here is no white space <br>
+				around the ’:’ field separator. This composes of inputFile.
 			</li>
 			<li>
-				The message that send between controller and switch are construct as string. After controller/switch gets the message, it will parse the string based on pre-defined rules. In the later implementation, the c struct should be used for construct the message.
+				Each task is defined by taking certain amount of resources and run as a task thread. If the resource is not available,<br>			</li>
+				then the task will wait until the resource is available, and finish its tasks.
+			<li>
+				There is a monitor thread that will record the current status of all task threads, which in "WAIT", "IDLE" and "RUN" <br>
+				categories.  
 			</li>
 			<li>
-				My program also keep updating the current statistics about the packet sent and recieved; as well as the number of package got and lost during processing the packet. The "list" command inside the controller and switch program can list the current statistics of the package information. "Exit" command will terminate the program
-			</li>
-			<li>
-				The file descriptor is stored in an array which allows the dynamically opening the number of switches and also to ensure no more switches will pass packets (ignore the packets).
+				When all task threads finish running, then the monitor thread will exit too. The final report for the whole process <br>
+				will be printed on the screen.
 			</li>
 		</ul>
 	</p>
@@ -37,17 +46,18 @@
 
 	<h1>Project status</h1>
 	<p>
-	You can successfully create controller and swithes by using correct function call.<br>
-	Each time a new swith starts, it will sends message to controller; and then, the controller will sends confirm message back.<br>
-	"list" command in each process will print out the current statistics of the package information; and "exit" command will terminate the program <br>
+	You can successfully create numbers of task thread and the monitor thread.<br>
+	The idle and busy time is defined by the line inside the input File. You can set the monitor time, which will print<br>
+	the current status of all task thread per millisecond. You can also define the number of times that each task need <br>
+	to run (i.e. define the number of iterations).
 	<p>The difficult part of this assignment is: 
 	<ul>
 		<li>
-			1)It is not clear how to transmit the message with c struct; hence I used the string as structure of message.
+			1)It takes time to understand the mutex library and pthread library, as well as how to use them correctly.
 		</li>
 
 		<li>
-			2)Parsing information is very complex; regular expression could be a great helper for future implementation, especially with more complex packet structure.
+			2)Parsing information is very complex; regular expression could be a great helper for future implementation.
 		</li>
 	</ul>
 	</p>
@@ -56,8 +66,9 @@
 
 	<h1>Testing and Results</h1>
 	<p>
-		The way that I did test my program is firstly using the command example from assignment description, while since I am trying to make the program looks like the one as description shows. Then I tested with some extreme values such as try to send package with destination port address 100000; which clearly, no switch will accept since each switch's acceptable range is less than hundreds <br>
-		For the number of switches, if user limit 5 swithes by using command "./a2sdn cont 5", then after create 5 switches from 5 terminals, any later new switches won't be able to send any packet to the controller, nor controller will establish the connection with the out-of-limited switches.
+		The way that I did test my program is firstly using the command example from assignment description, while since I <br>
+		am trying to make the program looks like the one as description shows. Then I tried with multiple unit of resources<br>
+		for testing the reliability of mutex and task implementation.
 	</p>
 
 
