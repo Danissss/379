@@ -196,45 +196,52 @@ void *monitor_thread(void *arg){
         int wait_inds = 0;
         int run_inds  = 0;
         int idle_inds = 0;
-        // cout << "num_tasks: " << num_tasks << endl;
+
+        // cout << task_list.task_name[0] <<" task_list.status[0]: " << task_list.status[0] << endl;
+        // cout << "strcmp: " << strcmp(task_list.status[0],IDLE) << endl;
+        // cout << "strcmp: " << strcmp(task_list.status[0],RUN) << endl;
+        // cout << "strcmp: " << strcmp(task_list.status[0],WAIT) << endl;
         for (int i = 0; i<num_tasks; i++){
-            // cout << "task_list.status[i]: " << task_list.status[i] << endl;
             
-                if (strcmp(task_list.status[i],"WAIT")==0){
+            
+            
+                if (strcmp(task_list.status[i],WAIT)==0){
 
                     strcpy(wait_list[wait_inds],task_list.task_name[i]);
                     wait_inds++;
                 }
-                else if (strcmp(task_list.status[i],"RUN")==0){
+                if (strcmp(task_list.status[i],RUN)==0){
                     strcpy(run_list[run_inds],task_list.task_name[i]);
                     run_inds++;
                 }
-                else if (strcmp(task_list.status[i],"IDLE")==0){
+                if (strcmp(task_list.status[i],IDLE)==0){
                     strcpy(idle_list[idle_inds],task_list.task_name[i]);
                     idle_inds++;
                 }
             
         }
         // print the current status:
-        char *wait_string = new char[100];
+        
+        char *wait_string = new char[25*33];
         strcpy(wait_string,"[WAIT] ");
-        char *run_string = new char[100];
+        char *run_string = new char[25*33];
         strcpy(run_string,"[RUN] ");
-        char *idle_string = new char[100];
+        char *idle_string = new char[25*33];
         strcpy(idle_string,"[IDLE] ");
 
         for (int i = 0; i<wait_inds; i++){
-            strcat(wait_string,wait_list[wait_inds]);
+            strcat(wait_string,wait_list[i]);
             strcat(wait_string," ");
         }
         for (int i = 0; i<run_inds; i++){
-            strcat(run_string,run_list[run_inds]);
+            strcat(run_string,run_list[i]);
             strcat(run_string," ");
         }
         for (int i = 0; i<idle_inds; i++){
-            strcat(idle_string,idle_list[idle_inds]);
+            strcat(idle_string,idle_list[i]);
             strcat(idle_string," ");
         }
+
         printf("monitor: %s\n", wait_string);
         printf("         %s\n", run_string);
         printf("         %s\n", idle_string);
@@ -284,12 +291,15 @@ void *task_thread(void *argu){
     coming_task->num_jobs = dup->num_jobs;
     coming_task->current_task_num = dup->current_task_num;
     coming_task->task_name = new char[32];
+    for(int i=0; i < coming_task->num_jobs; i++){
+        strcpy(coming_task->jobs[i],dup->jobs[i]);
+    }
     strcpy(coming_task->task_name,dup->task_name);
     
 
     
     int current_task_num = coming_task->current_task_num;
-    cout << "current_task_num: " << current_task_num << endl; 
+    // cout << "current_task_num: " << current_task_num << endl; 
     char *task_name = new char[32];
     strcpy(task_name,coming_task->task_name);
     // cout << "task_name: " << task_name << endl;
@@ -308,20 +318,19 @@ void *task_thread(void *argu){
     char resource_name[num_jobs][32];
     int resource_unit[num_jobs];
     
-    // cout << num_jobs << endl;
     // store the task type into array;
     for (int i = 0; i < num_jobs; i++){
         char *delimiter_resource = new char[1];
-        // cout <<"num_jobs" <<  num_jobs << endl;
-        // cout <<"i" << i << endl;
         strcpy(delimiter_resource,":");
         char splited_resource[MAXLINE][MAXWORD];
         split(coming_task->jobs[i],splited_resource,delimiter_resource);
+
 
         resource_unit[i] = atoi(splited_resource[1]);
         strcpy(resource_name[i], splited_resource[0]);
         
     }
+
     // cout << "HERE2" << endl;
     int task_iter = 0;
     int total_wait_time = 0;
@@ -339,10 +348,10 @@ void *task_thread(void *argu){
         
         mutex_lock(&create_mutex);
 
-        int end_wait  = get_time_gap();
-        total_wait_time = total_wait_time + (end_wait - start_wait);
+        // int end_wait  = get_time_gap();
+        // total_wait_time = total_wait_time + (end_wait - start_wait);
 
-        change_task_state(task_name, RUN);
+        // change_task_state(task_name, RUN);
         // cout << "task_list.status[current_task_num]: " << task_list.status[current_task_num] << endl;
 
         // get total wait time for this thread for the task, then increment to 
@@ -370,6 +379,7 @@ void *task_thread(void *argu){
                         // get current unit of resource
                         int current_resource_unit = g_resource.resource_unit[res_inds];
                         int left_unit = current_resource_unit - expected[inds];
+                        // cout << "g_resource.resource_unit[res_inds]: " << g_resource.resource_unit[res_inds] << endl;
                         if(left_unit < 0){
                             // there is no enough unit for the resource type;
                             // wait for the resource; go back to wait;
@@ -383,8 +393,13 @@ void *task_thread(void *argu){
                 }
             }
             get = 0;
-        }
+            // cout << "g_resource.resource_unit[res_inds]_2: " << g_resource.resource_unit[0] << endl;
 
+        }
+        int end_wait  = get_time_gap();
+        total_wait_time = total_wait_time + (end_wait - start_wait);
+
+        change_task_state(task_name, RUN);
         delay(busyTime);            
         // after eating time, return the unit back;
 
@@ -399,7 +414,7 @@ void *task_thread(void *argu){
                 }
             }
         }
-
+        
         // cout << busyTime << "and idleTime: " << idleTime << endl;
         int time_gap = get_time_gap();
         
@@ -410,7 +425,9 @@ void *task_thread(void *argu){
         
 
         mutex_unlock(&create_mutex);
+        // cout << "g_resource.resource_unit[res_inds]_3: " << g_resource.resource_unit[0] << endl;
         change_task_state(task_name, IDLE);    // enter the idle state
+        
         // cout << "task_list.status[current_task_num]: " << task_list.status[current_task_num] << endl;
 
         delay(idleTime);
@@ -461,7 +478,7 @@ void simulator(int argc, char** argv,int time_start_program){
     // *monitorTime_p = monitorTime;
     err = pthread_create(&ntid, NULL, monitor_thread, NULL);
     if (err != 0) { cout << "Can't create the monitor thread." << endl; exit(0); }
-    else          { cout << "Moniter thread created!" << endl; }
+    // else          { cout << "Moniter thread created!" << endl; }
     // pthread_join(ntid, NULL);
     
 
@@ -557,6 +574,7 @@ void simulator(int argc, char** argv,int time_start_program){
                 // cout << "idleTime " << idleTime << endl;
                 // cout << "task_name: " << new_task.task_name << endl;
                 int task_args_inds = 0;
+            
                 for (int i=4; i < num_words; i++){
                     // cout << splited_str[i] << endl;
                     char *delimiter = new char[1];
@@ -568,10 +586,13 @@ void simulator(int argc, char** argv,int time_start_program){
                     // strcpy(new_task.jobs[task_args_inds],splited_str[i]);
                     strcpy(task_list.resource_required[num_tasks][task_args_inds],splited_resource_task[0]);
                     task_list.num_resource_required[num_tasks][task_args_inds] = atoi(splited_resource_task[1]);
+                    // cout << "new_task->jobs[task_args_inds]: " << new_task->jobs[task_args_inds] << endl;
                     task_args_inds++;
                     // free(splited_resource);
                 }
+                
                 new_task->num_jobs = task_args_inds;
+                // cout << "new_task->num_jobs: " << new_task->num_jobs << endl;
                 new_task->current_task_num = num_tasks;
                 // new_task.num_jobs = task_args_inds;
                 // new_task.current_task_num = num_tasks;
@@ -633,7 +654,7 @@ void simulator(int argc, char** argv,int time_start_program){
             }
             else{
                 remaining_tasks--;
-                cout << TID[num_tasks] << "EXITED" << endl;
+                // cout << TID[num_tasks] << "EXITED" << endl;
             }
             
         }
