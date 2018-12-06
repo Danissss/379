@@ -502,7 +502,7 @@ void simulator(int argc, char** argv,int time_start_program){
             // if the line is task line, create the task thread
             // each task thread will execute for NITER iterations?
             // if the line is resource, then create what?
-            char strings[50];
+            
 	        char delimiter[1];
             int num_words;
 	        strcpy(delimiter," ");
@@ -549,8 +549,8 @@ void simulator(int argc, char** argv,int time_start_program){
             }
             
             if (strcmp(splited_str[0],"task") == 0){
-                cout << "TASK" << endl;
-                cout << STRING << endl;
+                // cout << "TASK" << endl;
+                // cout << STRING << endl;
                 // struct task_args* new_task = malloc(sizeof *new_task); 
                 struct task_args *new_task;
                 new_task = new task_args;
