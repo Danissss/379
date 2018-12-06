@@ -17,6 +17,7 @@
 #include <fstream>
 #include <string>
 #include <cstdlib>
+#include <algorithm>
 // C
 #include <errno.h>
 #include <sys/socket.h> 
@@ -494,7 +495,8 @@ void simulator(int argc, char** argv,int time_start_program){
         // split the string 
         
         
-
+        STRING.erase(remove(STRING.begin(), STRING.end(), '\t'), STRING.end());
+        cout << STRING << endl;
         
         if (STRING.substr(0,1).compare("#")!=0 && STRING.substr(0,1).compare("")!=0 ){
             // if the line is task line, create the task thread
@@ -508,8 +510,10 @@ void simulator(int argc, char** argv,int time_start_program){
 	        strcpy (tab, STRING.c_str());
 	        char splited_str[MAXLINE][MAXWORD];
 	        num_words = split(tab,splited_str,delimiter);
+            cout << splited_str[0] << " and task:" << strcmp(splited_str[0],"task") << endl;
             // cout<< num_words << endl;
             if(strcmp(splited_str[0],"resources") == 0){
+                
                 memset( (char *) &g_resource, 0, sizeof(g_resource) );
                 memset( (char *) &g_resource_copy, 0, sizeof(g_resource_copy));
                 // cout << STRING << endl;
@@ -545,9 +549,8 @@ void simulator(int argc, char** argv,int time_start_program){
             }
             
             if (strcmp(splited_str[0],"task") == 0){
-
-                
-                // cout << STRING << endl;
+                cout << "TASK" << endl;
+                cout << STRING << endl;
                 // struct task_args* new_task = malloc(sizeof *new_task); 
                 struct task_args *new_task;
                 new_task = new task_args;
@@ -640,6 +643,7 @@ void simulator(int argc, char** argv,int time_start_program){
         }
     }
     // cout << "num_tasks: " << num_tasks << endl;
+    
     remaining_tasks = num_tasks;
     while(remaining_tasks!=0){
         // cout << "remaining_tasks end: " << remaining_tasks << endl;
@@ -649,6 +653,7 @@ void simulator(int argc, char** argv,int time_start_program){
             // cout << "i: " << i << endl;
             int rval;
             rval = pthread_join(TID[i],NULL);
+            // printf("%lu\n",TID[i]);
             if (rval!= 0) {
                 continue;
             }
@@ -658,12 +663,15 @@ void simulator(int argc, char** argv,int time_start_program){
             }
             
         }
+        
+
     }
     // monitor thread ended; pthread_join monitor thread tid
+    
     remaining_tasks--;
     pthread_join(ntid, NULL);
 
-
+    
 
 
     long total_running_time = get_time_gap();
