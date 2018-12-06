@@ -643,7 +643,7 @@ void simulator(int argc, char** argv,int time_start_program){
         }
     }
     // cout << "num_tasks: " << num_tasks << endl;
-    
+    delay(2000);
     remaining_tasks = num_tasks;
     while(remaining_tasks!=0){
         // cout << "remaining_tasks end: " << remaining_tasks << endl;
