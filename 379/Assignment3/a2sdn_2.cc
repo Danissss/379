@@ -956,8 +956,6 @@ char * format_swi(const string &a){
 	char * tab2 = new char [a.length()+1];
 	strcpy (tab2, a.c_str());
 	char splited_str[MAXLINE][MAXWORD];
-	// int** splited_str = new int*[MAXWORD];
-	// char string_ing[100] = "-1;-1;100-110;sw1;ACK"; // this will pass successfully
 	split(tab2,splited_str,delimiter);
 
 	// cout << splited_str[0] << endl;

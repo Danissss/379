@@ -72,6 +72,7 @@ void change_task_state(char *task_name, char *status);
 void mutex_init (pthread_mutex_t* mutex);
 void mutex_lock (pthread_mutex_t* mutex);
 void mutex_unlock (pthread_mutex_t* mutex);
+void check_file_exit(char *file_name);
 void delay (int x);
 
 // define struct
@@ -462,10 +463,14 @@ void simulator(int argc, char** argv,int time_start_program){
     monitorTime = atoi(argv[2]);
     iteration = atoi(argv[3]); // n iteration
 
-
+    check_file_exit(argv[1]);
     // open file
     ifstream inputFile;
 	inputFile.open(argv[1]);
+    // if (!inputFile.open(argv[1]){
+    //     // printf("File not exist. \n");
+    //     error("File not exist.");
+    // }
 
     
 
@@ -674,7 +679,7 @@ void simulator(int argc, char** argv,int time_start_program){
     
 
 
-    long total_running_time = get_time_gap();
+    // long total_running_time = get_time_gap();
     //The pthread_join() function waits for the thread specified by thread to terminate.
     printf("\nOutput of the termination phase\n");
     printf("=================================\n");
@@ -703,6 +708,8 @@ void simulator(int argc, char** argv,int time_start_program){
         // cout << "\t(RUN: " << task_list.RUN[i] << " times, WAIT: " << task_list.WAIT_time[i] << " msec)" << endl;
 
     }
+
+    long total_running_time = get_time_gap();
     printf("Running time= %ld msec\n", total_running_time);
     printf("------------------------------\n");
     // cout << "Running time= " << total_running_time << " msec" << endl;
@@ -767,6 +774,17 @@ void split_name_value(char *string, int *value){
 
 }
 
+
+void check_file_exit(char *file_name){
+    FILE * pFile;
+    pFile = fopen(file_name,"r");
+    if (pFile==NULL)
+    {
+        error("File not exist.\n");
+    }else{
+        fclose(pFile);
+    }
+}
 
 
 int get_time_gap(){
